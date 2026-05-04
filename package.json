@@ -6,7 +6,7 @@
   "scripts": {
     "prebuild": "node scripts/generateAnimationManifest.js && npx tsx scripts/generateSitemap.ts",
     "dev": "npm run prebuild && vite --port=3000 --host=0.0.0.0",
-    "build": "npm run prebuild && vite build && tsx generate-seo-pages.tsx",
+    "build": "node -v && npm run prebuild && vite build && tsx generate-seo-pages.tsx",
     "preview": "vite preview",
     "clean": "rm -rf dist",
     "lint": "tsc --noEmit"
