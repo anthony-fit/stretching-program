@@ -1,0 +1,25 @@
+{
+  "double_knees_to_chest": [
+    "forward_spine_stretch",
+    "forward_spine_stretch_pulse"
+  ],
+  "cat_cow_pose": [
+    "cat_cow_pose",
+    "desk_cat_cow"
+  ],
+  "cat_cow_stretch": [
+    "cat_cow_pose",
+    "desk_cat_cow"
+  ],
+  "neck_stretch": [
+    "side_neck_stretch_left",
+    "side_neck_stretch_right",
+    "neck_lift"
+  ],
+  "bridge": [
+    "butt_bridge"
+  ],
+  "butt_bridge": [
+    "butt_bridge"
+  ]
+}
