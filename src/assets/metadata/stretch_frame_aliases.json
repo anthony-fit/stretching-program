@@ -21,5 +21,17 @@
   ],
   "butt_bridge": [
     "butt_bridge"
+  ],
+  "downward_facing_dog": [
+    "forward_bend",
+    "standing_half_forward_fold"
+  ],
+  "glute_stretch_left": [
+    "bench_glute_kick_back_left",
+    "glute_kickback_crossover_with_left_leg"
+  ],
+  "glute_stretch_right": [
+    "bench_glute_kick_back_right",
+    "glute_kickback_crossover_with_right_leg"
   ]
 }
