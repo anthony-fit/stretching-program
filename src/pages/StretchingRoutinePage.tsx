@@ -239,7 +239,7 @@ export default function StretchingRoutinePage() {
 
   const categories = ['All', ...new Set(allExercises.map(ex => ex.category))];
 
-  const [customRoutine, setCustomRoutine] = useState<Exercise[] | null>(null);
+  const [customRoutine, setCustomRoutine] = useState<Exercise[] | null>(null); const [visibleCount, setVisibleCount] = useState(9);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -301,7 +301,7 @@ export default function StretchingRoutinePage() {
     return matchesSearch && matchesCategory;
   });
 
-  const filteredExercises = customRoutine || computedFilteredExercises;
+  const filteredExercises = customRoutine || computedFilteredExercises; useEffect(() => { setVisibleCount(9); }, [searchQuery, selectedCategory, customRoutine]);
 
   useEffect(() => {
     if (!isPlayingRoutine) return;
@@ -805,12 +805,20 @@ export default function StretchingRoutinePage() {
         )}
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-          {filteredExercises.map((ex, idx) => (
+          {filteredExercises.slice(0, visibleCount).map((ex, idx) => (
             <ExerciseCard key={ex.id} ex={ex} idx={idx} onClick={() => setSelectedExercise(ex)} />
           ))}
         </div>
 
-        {filteredExercises.length === 0 && (
+{visibleCount < filteredExercises.length && (
+  <div className="flex justify-center mt-10">
+    <button onClick={() => setVisibleCount(prev => prev + 9)} className="px-6 py-3 bg-charcoal text-white rounded-xl hover:bg-black transition-all">
+      Load More ({filteredExercises.length - visibleCount})
+    </button>
+  </div>
+)}
+
+{filteredExercises.length === 0 && (
           <div className="text-center py-32">
             <p className="text-charcoal/40 font-serif italic text-2xl">No protocols found matching your criteria.</p>
           </div>
