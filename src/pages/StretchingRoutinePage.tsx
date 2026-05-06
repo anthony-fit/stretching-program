@@ -63,7 +63,7 @@ function ExerciseCard({ ex, idx, onClick }: ExerciseCardProps) {
 
         <div className="space-y-6 flex-1">
           <div className="rounded-2xl overflow-hidden bg-cream/50 p-2">
-            <StretchAnimationPlayer exPath={getAnimationPath(ex.name)} isPlaying={isHovered} isPreparing={false} />
+            <StretchAnimationPlayer exPath={getAnimationPath(ex.name)} />
           </div>
           <div className="space-y-3">
             <h3 className="text-3xl font-serif font-medium text-charcoal group-hover:text-gold transition-colors leading-tight">
