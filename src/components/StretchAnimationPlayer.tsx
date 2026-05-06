@@ -81,7 +81,7 @@ export default function StretchAnimationPlayer({
 
     playAudio();
 
-    return () => {
+    console.log("ANIMATION PATH:", exPath); return () => {
       audioRef.current?.pause();
     };
   }, [isPlaying, isPreparing, currentTrack.url, hasInteracted]);
@@ -128,7 +128,7 @@ export default function StretchAnimationPlayer({
 
     // Dynamic detection if the animation folder exists
     const testImg = new Image();
-    testImg.src = `${framesBasePath}/frame_001.webp`;
+    testImg.src = `${framesBasePath}/console.log("LOADING FRAME:", framesBasePath); frame_001.webp`;
     testImg.onerror = () => {
       if (currentSlug !== "default_stretch") {
         setUseFallback(true);
@@ -149,12 +149,12 @@ export default function StretchAnimationPlayer({
       setFrame(1);
     }
 
-    return () => clearInterval(interval);
+    console.log("ANIMATION PATH:", exPath); return () => clearInterval(interval);
   }, [isLoaded, isPlaying, hasError]);
 
   const frameSrc = `${framesBasePath}/frame_${String(frame).padStart(3, "0")}.webp`;
 
-  return (
+  console.log("ANIMATION PATH:", exPath); return (
     <div 
       onClick={handleInteraction}
       className={`relative w-full aspect-[4/5] md:aspect-video bg-white rounded-[3rem] overflow-hidden border border-charcoal/5 shadow-[inset_0_2px_10px_rgba(0,0,0,0.03)] group transition-all duration-700 ${isPreparing ? 'bg-cream/20' : ''}`}
@@ -284,7 +284,7 @@ export default function StretchAnimationPlayer({
       <div className="absolute inset-0 flex items-center justify-center p-4 md:p-12">
         <motion.img
           key={isPreparing ? 'prep' : frameSrc}
-          src={isPreparing ? `${framesBasePath}/frame_001.webp` : frameSrc}
+          src={isPreparing ? `${framesBasePath}/console.log("LOADING FRAME:", framesBasePath); frame_001.webp` : frameSrc}
           alt="Stretch Visualization"
           initial={{ opacity: 0.8 }}
           animate={{ opacity: 1 }}
