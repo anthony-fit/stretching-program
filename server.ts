@@ -140,8 +140,13 @@ async function startServer() {
         const rawImageUrl = item.images && item.images.length > 0 ? 
             `https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/${item.images[0]}` : null;
             
+        const imageUrls = (item.images || []).map((img: string) => 
+            `/api/proxy-gif?url=${encodeURIComponent(`https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/${img}`)}&name=${encodeURIComponent(item.name || searchQuery)}`
+        );
+            
         return {
           ...item,
+          imageUrls,
           gifUrl: rawImageUrl ? `/api/proxy-gif?url=${encodeURIComponent(rawImageUrl)}&name=${encodeURIComponent(item.name || searchQuery)}` : null
         };
       });

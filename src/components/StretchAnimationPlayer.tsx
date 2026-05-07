@@ -28,6 +28,7 @@ export default function StretchAnimationPlayer({
   const [hasError, setHasError] = useState(false);
   const [useFallback, setUseFallback] = useState(false);
   const [gifUrl, setGifUrl] = useState<string | null>(null);
+  const [imageUrls, setImageUrls] = useState<string[]>([]);
   const [isApiLoading, setIsApiLoading] = useState(false);
   
   // Music State
@@ -80,8 +81,10 @@ export default function StretchAnimationPlayer({
           if (bestMatch.gifUrl) {
             console.log(`[API] Selected exercise GIF: ${bestMatch.name}`);
             setGifUrl(bestMatch.gifUrl);
+            setImageUrls(bestMatch.imageUrls || []);
           } else {
             console.warn(`[API] No GIF found in results for ${searchTerm}`);
+            setImageUrls([]);
           }
         } else {
           console.log(`[API] No results found for ${searchTerm}`);
@@ -208,19 +211,29 @@ export default function StretchAnimationPlayer({
   useEffect(() => {
     let interval: ReturnType<typeof setInterval>;
 
-    // Only run local frame loop if we DON'T have a GIF and everything is ready
-    if (isLoaded && isPlaying && !hasError && !gifUrl) {
-      interval = setInterval(() => {
-        setFrame(prev => (prev % totalFrames) + 1);
-      }, 1000 / fps);
+    if (isLoaded && isPlaying && !hasError) {
+      if (imageUrls.length > 1) {
+        // Run animation for multi-image API responses (cross-fading slowly)
+        interval = setInterval(() => {
+          setFrame(prev => (prev % imageUrls.length) + 1);
+        }, 3000); 
+      } else if (!gifUrl) {
+        // Run local frame sequence
+        interval = setInterval(() => {
+          setFrame(prev => (prev % totalFrames) + 1);
+        }, 1000 / fps);
+      } else {
+        setFrame(1);
+      }
     } else {
       setFrame(1);
     }
 
     return () => clearInterval(interval);
-  }, [isLoaded, isPlaying, hasError, gifUrl]);
+  }, [isLoaded, isPlaying, hasError, gifUrl, imageUrls]);
 
-  const frameSrc = `${framesBasePath}/frame_${String(frame).padStart(3, "0")}.webp`;
+  const frameSrc = !gifUrl ? `${framesBasePath}/frame_${String(frame).padStart(3, "0")}.webp` : "";
+  const dynamicGifUrl = imageUrls.length > 0 ? imageUrls[frame - 1] : gifUrl;
 
   return (
     <div 
@@ -360,27 +373,48 @@ export default function StretchAnimationPlayer({
         )}
       </AnimatePresence>
 
-      <div className="absolute inset-0 flex items-center justify-center p-4 md:p-12">
+      <div className="absolute inset-0 flex items-center justify-center p-4 md:p-12 relative overflow-hidden">
         {gifUrl ? (
-          <motion.img
-            key={gifUrl}
-            src={gifUrl}
-            alt={searchTerm}
-            referrerPolicy="no-referrer"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: isLoaded ? 1 : 0 }}
-            transition={{ duration: 0.3 }}
-            onLoad={() => {
-              console.log("GIF Loaded successfully:", gifUrl);
-              setIsLoaded(true);
-              setHasError(false);
-            }}
-            onError={(e) => {
-              console.warn("GIF specifically failed to load, falling back...", gifUrl);
-              setGifUrl(null); 
-            }}
-            className="w-full h-full object-contain mix-blend-multiply"
-          />
+          <>
+            {imageUrls.length > 1 ? (
+              imageUrls.map((url, index) => (
+                <img
+                  key={url}
+                  src={url}
+                  alt={searchTerm}
+                  referrerPolicy="no-referrer"
+                  onLoad={() => {
+                    setIsLoaded(true);
+                    setHasError(false);
+                  }}
+                  onError={() => {
+                    setGifUrl(null);
+                    setImageUrls([]);
+                  }}
+                  className={`absolute inset-0 w-full h-full object-contain mix-blend-multiply transition-opacity duration-[1500ms] ease-in-out ${
+                    isLoaded ? (frame - 1 === index ? 'opacity-100' : 'opacity-0') : 'opacity-0'
+                  }`}
+                />
+              ))
+            ) : (
+              <img
+                src={dynamicGifUrl || undefined}
+                alt={searchTerm}
+                referrerPolicy="no-referrer"
+                onLoad={() => {
+                  console.log("GIF Loaded successfully:", dynamicGifUrl);
+                  setIsLoaded(true);
+                  setHasError(false);
+                }}
+                onError={(e) => {
+                  console.warn("GIF specifically failed to load, falling back...", dynamicGifUrl);
+                  setGifUrl(null); 
+                  setImageUrls([]);
+                }}
+                className={`w-full h-full object-contain mix-blend-multiply transition-opacity duration-300 ${isLoaded ? 'opacity-100' : 'opacity-0'}`}
+              />
+            )}
+          </>
         ) : (
           <motion.img
             key={isPreparing ? 'prep' : frameSrc}
