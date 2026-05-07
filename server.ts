@@ -1,0 +1,177 @@
+import express from "express";
+import cors from "cors";
+import dotenv from "dotenv";
+import path from "path";
+import fs from "fs";
+import { fileURLToPath } from "url";
+import { createServer as createViteServer } from "vite";
+
+dotenv.config();
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+// Ensure cache directory exists
+const CACHE_DIR = path.join(process.cwd(), "gif-cache");
+if (!fs.existsSync(CACHE_DIR)) {
+  fs.mkdirSync(CACHE_DIR, { recursive: true });
+}
+
+async function startServer() {
+  const app = express();
+  const PORT = 3000;
+
+  app.use(cors());
+  app.use(express.json());
+
+  // Local GIF Proxy & Cache
+  app.get("/api/proxy-gif", async (req, res) => {
+    const url = req.query.url as string;
+    const name = req.query.name as string;
+    
+    if (!url) return res.status(400).send("No URL provided");
+
+    try {
+      const response = await fetch(url);
+      if (!response.ok) throw new Error("Failed to fetch source image: " + response.statusText);
+      
+      const buffer = await response.arrayBuffer();
+      const nodeBuffer = Buffer.from(buffer);
+      
+      const contentType = response.headers.get("content-type") || "image/jpeg";
+      res.setHeader("Content-Type", contentType);
+      res.setHeader("Cache-Control", "public, max-age=31536000"); // Cache for 1 year
+      res.send(nodeBuffer);
+    } catch (error) {
+      console.error("GIF Cache Error:", error);
+      
+      res.setHeader("Content-Type", "image/svg+xml");
+      res.setHeader("Cache-Control", "no-cache");
+      // Provide a nice fallback animated pulse or text
+      res.send(`<svg width="400" height="400" viewBox="0 0 400 400" xmlns="http://www.w3.org/2000/svg">
+        <rect width="100%" height="100%" fill="#f1ece5" />
+        <text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle" font-family="sans-serif" font-size="20" font-weight="bold" fill="#7d7c75">Animation Unavailable</text>
+        <text x="50%" y="58%" dominant-baseline="middle" text-anchor="middle" font-family="sans-serif" font-size="12" fill="#a4a29a">External server is currently down</text>
+      </svg>`);
+    }
+  });
+
+  let freeExerciseDB: any[] | null = null;
+  const getFreeExerciseDB = async () => {
+      if (freeExerciseDB) return freeExerciseDB;
+      try {
+          console.log("[API init] Downloading free-exercise-db...");
+          const res = await fetch("https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/dist/exercises.json");
+          freeExerciseDB = await res.json();
+          console.log(`[API init] Loaded ${freeExerciseDB?.length} exercises.`);
+      } catch (e) {
+          console.error("Failed to load free-exercise-db", e);
+          freeExerciseDB = [];
+      }
+      return freeExerciseDB;
+  };
+
+  const apiCache = new Map<string, { data: any; expiry: number }>();
+  const CACHE_TTL = 1000 * 60 * 60 * 24; // 24 hours for API results
+
+  app.get("/api/get-stretch", async (req, res) => {
+    let searchQuery = (req.query.name as string)?.toLowerCase();
+    
+    if (!searchQuery) return res.status(400).json({ error: "Missing name" });
+    
+    searchQuery = searchQuery.replace(/[^a-z0-9]+/g, " ").replace(/\b(s)\b/g, "").replace(/\s+/g, " ").trim();
+
+    if (apiCache.has(searchQuery) && apiCache.get(searchQuery)!.expiry > Date.now()) {
+      return res.json(apiCache.get(searchQuery)!.data);
+    }
+
+    const synonymMap: Record<string, string[]> = {
+      "butt bridge": ["glute bridge", "bridge", "hip lift", "butt", "glute"],
+      "butt lift bridge": ["glute bridge", "bridge", "hip lift", "butt", "glute"],
+      "cat cow": ["cat stretch", "spinal stretch", "cat"],
+      "childs pose": ["child's pose", "childs", "child"],
+      "hamstring stretch": ["hamstring stretch", "hamstring"],
+      "cobra stretch": ["spinal stretch", "looking at ceiling", "pelvic tilt into bridge", "cobra"],
+      "pigeon pose": ["lying glute", "seated glute", "piriformis", "pigeon"],
+      "standing forward fold": ["standing toe touches", "toe touchers", "forward fold", "fold"],
+      "forward fold": ["standing toe touches", "toe touchers", "forward fold", "fold"],
+      "butterfly pose": ["lying bent leg groin", "adductor", "intermediate groin stretch", "butterfly", "groin"],
+      "downward facing dog": ["pyramid", "runner's stretch", "downward facing balance", "downward dog"],
+      "downward dog": ["pyramid", "runner's stretch", "downward facing balance", "downward dog"],
+      "gentle neck release": ["side neck stretch", "chin to chest stretch", "neck-smr", "neck"],
+      "neck stretch": ["side neck stretch", "chin to chest stretch", "neck-smr", "neck"],
+      "cross body shoulder stretch": ["shoulder stretch", "round the world shoulder stretch", "cross body"],
+      "shoulder stretch": ["shoulder stretch", "round the world shoulder stretch", "cross body"],
+      "hip flexor": ["kneeling hip flexor", "standing hip flexors", "hip stretch", "psoas"],
+      "quad stretch": ["all fours quad stretch", "quad stretch", "quadriceps", "thigh stretch", "quad"],
+      "chest stretch": ["chest stretch on stability ball", "dynamic chest stretch", "chest and front of shoulder stretch", "chest opener"],
+    };
+
+    const searchVariations = Array.from(new Set([
+      searchQuery,
+      ...(synonymMap[searchQuery] || []),
+      searchQuery.split(' ')[0]
+    ])).filter(t => t && t.length >= 2);
+
+    try {
+      const db = await getFreeExerciseDB();
+      let data: any[] = [];
+
+      for (const term of searchVariations) {
+        console.log(`[API Search] Trying variation: "${term}"`);
+        
+        let matches = db!.filter(item => item.name.toLowerCase().includes(term.toLowerCase()));
+        
+        // Prioritize "stretching" category or "body only" equipment
+        const stretchesBodyOnly = matches.filter(i => i.equipment === "body only" || i.category === "stretching");
+        if (stretchesBodyOnly.length > 0) {
+           data = stretchesBodyOnly;
+           break;
+        }
+        
+        if (matches.length > 0) {
+           data = matches;
+           break;
+        }
+      }
+
+      const processedData = data.slice(0, 10).map((item: any) => {
+        // Build absolute image url for free-exercise-db
+        const rawImageUrl = item.images && item.images.length > 0 ? 
+            `https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/${item.images[0]}` : null;
+            
+        return {
+          ...item,
+          gifUrl: rawImageUrl ? `/api/proxy-gif?url=${encodeURIComponent(rawImageUrl)}&name=${encodeURIComponent(item.name || searchQuery)}` : null
+        };
+      });
+
+      console.log(`[API Result] Found ${processedData.length} exercises for "${searchQuery}"`);
+      apiCache.set(searchQuery, { data: processedData, expiry: Date.now() + CACHE_TTL });
+      res.json(processedData);
+    } catch (error) {
+      console.error("API Flow Error:", error);
+      res.status(500).json({ error: "API connection failed" });
+    }
+  });
+
+  if (process.env.NODE_ENV !== "production") {
+    const vite = await createViteServer({
+      server: { middlewareMode: true },
+      appType: "spa",
+    });
+    app.use(vite.middlewares);
+  } else {
+    const distPath = path.join(process.cwd(), "dist");
+    app.use(express.static(distPath));
+    app.get("*", (req, res) => {
+      res.sendFile(path.join(distPath, "index.html"));
+    });
+  }
+
+  app.listen(PORT, "0.0.0.0", () => {
+    console.log(`Server running - PID: ${process.pid}`);
+  });
+}
+
+startServer();

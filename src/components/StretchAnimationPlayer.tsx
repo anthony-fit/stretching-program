@@ -25,6 +25,8 @@ export default function StretchAnimationPlayer({
   const [isLoaded, setIsLoaded] = useState(false);
   const [hasError, setHasError] = useState(false);
   const [useFallback, setUseFallback] = useState(false);
+  const [gifUrl, setGifUrl] = useState<string | null>(null);
+  const [isApiLoading, setIsApiLoading] = useState(false);
   
   // Music State
   const [isMusicMenuOpen, setIsMusicMenuOpen] = useState(false);
@@ -36,6 +38,70 @@ export default function StretchAnimationPlayer({
   const fps = 10;
   
   const currentTrack = TRACKS[currentTrackIndex];
+
+  // Extract slug and search term
+  const requestedSlug = exPath.replace(/^\/animations\//, "").replace(/\.json$/, "");
+  // Optimized search term: remove generic words but keep key identifiers
+  const searchTerm = requestedSlug
+    .replace(/_/g, " ")
+    .replace(/\b(routine|exercise|pose)\b/gi, "")
+    .trim();
+
+  // API Fetching Logic
+  useEffect(() => {
+    // Skip API calls for the default placeholder
+    if (requestedSlug === "default_stretch" || !searchTerm) {
+      setGifUrl(null);
+      setIsApiLoading(false);
+      return;
+    }
+
+    const fetchExerciseGif = async () => {
+      setIsApiLoading(true);
+      setGifUrl(null);
+      try {
+        const response = await fetch(`/api/get-stretch?name=${encodeURIComponent(searchTerm)}`);
+        
+        if (!response.ok) throw new Error(`API error: ${response.status}`);
+
+        const data = await response.json();
+        
+        if (Array.isArray(data) && data.length > 0) {
+          console.log(`[API] Results found for ${searchTerm}:`, data.length);
+          // Find exercise that most closely matches the search term
+          const termWords = searchTerm.toLowerCase().split(' ');
+          const bestMatch = data.find(ex => {
+            const name = ex.name.toLowerCase();
+            return termWords.every(word => name.includes(word)) && ex.gifUrl;
+          }) || data.find(ex => ex.gifUrl) || data[0];
+
+          if (bestMatch.gifUrl) {
+            console.log(`[API] Selected exercise GIF: ${bestMatch.name}`);
+            setGifUrl(bestMatch.gifUrl);
+          } else {
+            console.warn(`[API] No GIF found in results for ${searchTerm}`);
+          }
+        } else {
+          console.log(`[API] No results found for ${searchTerm}`);
+        }
+      } catch (err: any) {
+        console.warn("RapidAPI data unavailable for:", searchTerm, err);
+        // If it's a specific API error reported by our server (403/429)
+        if (err.message?.includes("429") || err.message?.includes("403")) {
+          setHasError(true);
+        }
+      } finally {
+        setIsApiLoading(false);
+      }
+    };
+
+    fetchExerciseGif();
+  }, [searchTerm, requestedSlug]);
+
+  // Handle errors and fallback messaging
+  const errorSubtext = hasError 
+    ? (isApiLoading ? "Connecting Library..." : "Visualization rendering...") 
+    : "Protocol Live";
 
   // Audio Logic
   useEffect(() => {
@@ -81,7 +147,7 @@ export default function StretchAnimationPlayer({
 
     playAudio();
 
-    console.log("ANIMATION PATH:", exPath); return () => {
+    return () => {
       audioRef.current?.pause();
     };
   }, [isPlaying, isPreparing, currentTrack.url, hasInteracted]);
@@ -110,13 +176,10 @@ export default function StretchAnimationPlayer({
     }
   };
 
-  // Extract slug from path like "/animations/butt_bridge.json"
-  const requestedSlug = exPath.replace(/^\/animations\//, "").replace(/\.json$/, "");
-  
   // Check manifest to immediately fallback if known missing
   const isAvailable = manifest.includes(requestedSlug);
   
-  const currentSlug = (!isAvailable || useFallback) ? "default_stretch" : requestedSlug;
+  const currentSlug = (!isAvailable || useFallback) && !gifUrl ? "default_stretch" : requestedSlug;
   const framesBasePath = `/animations/${currentSlug}`;
 
   useEffect(() => {
@@ -126,22 +189,25 @@ export default function StretchAnimationPlayer({
     setUseFallback(false);
     setFrame(1);
 
-    // Dynamic detection if the animation folder exists
-    const testImg = new Image();
-    testImg.src = `${framesBasePath}/console.log("LOADING FRAME:", framesBasePath); frame_001.webp`;
-    testImg.onerror = () => {
-      if (currentSlug !== "default_stretch") {
-        setUseFallback(true);
-      } else {
-        setHasError(true);
-      }
-    };
-  }, [requestedSlug, currentSlug]);
+    // If we are using the local animation system, check if files exist
+    if (!gifUrl) {
+      const testImg = new Image();
+      testImg.src = `${framesBasePath}/frame_001.webp`;
+      testImg.onerror = () => {
+        if (!gifUrl && currentSlug !== "default_stretch") {
+          setUseFallback(true);
+        } else if (!gifUrl && !isApiLoading) {
+          setHasError(true);
+        }
+      };
+    }
+  }, [requestedSlug, currentSlug, gifUrl, isApiLoading]);
 
   useEffect(() => {
     let interval: ReturnType<typeof setInterval>;
 
-    if (isLoaded && isPlaying && !hasError) {
+    // Only run local frame loop if we DON'T have a GIF and everything is ready
+    if (isLoaded && isPlaying && !hasError && !gifUrl) {
       interval = setInterval(() => {
         setFrame(prev => (prev % totalFrames) + 1);
       }, 1000 / fps);
@@ -149,12 +215,12 @@ export default function StretchAnimationPlayer({
       setFrame(1);
     }
 
-    console.log("ANIMATION PATH:", exPath); return () => clearInterval(interval);
-  }, [isLoaded, isPlaying, hasError]);
+    return () => clearInterval(interval);
+  }, [isLoaded, isPlaying, hasError, gifUrl]);
 
   const frameSrc = `${framesBasePath}/frame_${String(frame).padStart(3, "0")}.webp`;
 
-  console.log("ANIMATION PATH:", exPath); return (
+  return (
     <div 
       onClick={handleInteraction}
       className={`relative w-full aspect-[4/5] md:aspect-video bg-white rounded-[3rem] overflow-hidden border border-charcoal/5 shadow-[inset_0_2px_10px_rgba(0,0,0,0.03)] group transition-all duration-700 ${isPreparing ? 'bg-cream/20' : ''}`}
@@ -239,7 +305,7 @@ export default function StretchAnimationPlayer({
       />
 
       <AnimatePresence mode="wait">
-        {!isLoaded && !hasError && (
+        {(isApiLoading || !isLoaded) && !hasError && (
           <motion.div 
             key="loader"
             initial={{ opacity: 0 }}
@@ -248,7 +314,9 @@ export default function StretchAnimationPlayer({
             className="absolute inset-0 flex flex-col items-center justify-center gap-4 bg-cream/50 backdrop-blur-sm z-20"
           >
             <RefreshCw className="w-8 h-8 text-gold animate-spin" />
-            <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-charcoal/40">Loading Protocol...</p>
+            <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-charcoal/40">
+              {isApiLoading ? "Connecting Library..." : "Loading Protocol..."}
+            </p>
           </motion.div>
         )}
 
@@ -271,41 +339,72 @@ export default function StretchAnimationPlayer({
                 />
                 <Activity className="w-12 h-12 text-gold animate-pulse" strokeWidth={1} />
             </div>
-            <div className="text-center px-12">
-                <p className="text-[10px] font-black uppercase tracking-[0.4em] text-charcoal/50 mb-2">Protocol Live</p>
-                <p className="text-[9px] font-bold uppercase tracking-widest text-charcoal/20 leading-relaxed">
-                   Visualization rendering... {currentSlug.replace(/_/g, ' ')}
+            <div className="text-center px-6">
+                <p className="text-[12px] font-black uppercase tracking-[0.2em] text-red-500/80 mb-4">
+                  {hasError && !gifUrl ? "Visualization Offline" : "Protocol Live"}
                 </p>
+                {hasError && !gifUrl ? (
+                  <div className="text-[10px] font-medium tracking-wide text-charcoal/60 leading-relaxed max-w-[280px] mx-auto text-center bg-charcoal/5 p-4 rounded-xl border border-charcoal/10">
+                    <p className="font-bold text-charcoal mb-2 uppercase tracking-widest text-[9px]">Animation Error</p>
+                    <p>The visualization for this protocol is currently unavailable.</p>
+                  </div>
+                ) : (
+                  <p className="text-[9px] font-bold uppercase tracking-widest text-charcoal/20 leading-relaxed max-w-[240px] mx-auto">
+                     Visualization rendering... {currentSlug.replace(/_/g, ' ')}
+                  </p>
+                )}
             </div>
           </motion.div>
         )}
       </AnimatePresence>
 
       <div className="absolute inset-0 flex items-center justify-center p-4 md:p-12">
-        <motion.img
-          key={isPreparing ? 'prep' : frameSrc}
-          src={isPreparing ? `${framesBasePath}/console.log("LOADING FRAME:", framesBasePath); frame_001.webp` : frameSrc}
-          alt="Stretch Visualization"
-          initial={{ opacity: 0.8 }}
-          animate={{ opacity: 1 }}
-          transition={{ duration: 0.2 }}
-          onLoad={() => {
-            setIsLoaded(true);
-            setHasError(false);
-          }}
-          onError={() => {
-            console.warn("Animation image load failed for:", currentSlug);
-            if (frame > 1) {
-              setFrame(1); // Handle missing end-frames by looping back early
-            } else if (currentSlug !== "default_stretch") {
-              setUseFallback(true);
-            } else {
-              setHasError(true);
-              setIsLoaded(true); // Stop loader showing on error
-            }
-          }}
-          className={`w-full h-full object-contain mix-blend-multiply transition-opacity duration-300 ${isLoaded ? 'opacity-100' : 'opacity-0'}`}
-        />
+        {gifUrl ? (
+          <motion.img
+            key={gifUrl}
+            src={gifUrl}
+            alt={searchTerm}
+            referrerPolicy="no-referrer"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: isLoaded ? 1 : 0 }}
+            transition={{ duration: 0.3 }}
+            onLoad={() => {
+              console.log("GIF Loaded successfully:", gifUrl);
+              setIsLoaded(true);
+              setHasError(false);
+            }}
+            onError={(e) => {
+              console.warn("GIF specifically failed to load, falling back...", gifUrl);
+              setGifUrl(null); 
+            }}
+            className="w-full h-full object-contain mix-blend-multiply"
+          />
+        ) : (
+          <motion.img
+            key={isPreparing ? 'prep' : frameSrc}
+            src={isPreparing ? `${framesBasePath}/frame_001.webp` : frameSrc}
+            alt="Stretch Visualization"
+            initial={{ opacity: 0.8 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.2 }}
+            onLoad={() => {
+              setIsLoaded(true);
+              setHasError(false);
+            }}
+            onError={() => {
+              console.warn("Animation image load failed for:", currentSlug);
+              if (frame > 1) {
+                setFrame(1); // Handle missing end-frames by looping back early
+              } else if (currentSlug !== "default_stretch") {
+                setUseFallback(true);
+              } else {
+                setHasError(true);
+                setIsLoaded(true); // Stop loader showing on error
+              }
+            }}
+            className={`w-full h-full object-contain mix-blend-multiply transition-opacity duration-300 ${isLoaded ? 'opacity-100' : 'opacity-0'}`}
+          />
+        )}
       </div>
 
       {/* Status Overlay */}

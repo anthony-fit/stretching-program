@@ -1,61 +1,7 @@
 {
-    "double_knees_to_chest":  [
-                                  "forward_spine_stretch",
-                                  "forward_spine_stretch_pulse"
-                              ],
-    "cat_cow_pose":  [
-                         "cat_cow_pose",
-                         "desk_cat_cow"
-                     ],
-    "cat_cow_stretch":  [
-                            "cat_cow_pose",
-                            "desk_cat_cow"
-                        ],
-    "neck_stretch":  [
-                         "side_neck_stretch_left",
-                         "side_neck_stretch_right",
-                         "neck_lift"
-                     ],
-    "bridge":  [
-                   "butt_bridge"
-               ],
-    "butt_bridge":  [
-                        "butt_bridge"
-                    ],
-    "downward_facing_dog":  [
-                                "forward_bend",
-                                "standing_half_forward_fold"
-                            ],
-    "glute_stretch_left":  [
-                               "bench_glute_kick_back_left",
-                               "glute_kickback_crossover_with_left_leg"
-                           ],
-    "glute_stretch_right":  [
-                                "bench_glute_kick_back_right",
-                                "glute_kickback_crossover_with_right_leg"
-                            ],
-    "child_s_pose":  [
-                         "forward_spine_stretch"
-                     ],
-    "cobra_stretch":  [
-                          "standing_back_stretches"
-                      ],
-    "pigeon_pose":  [
-                        "frog_pose"
-                    ],
-    "hamstring_stretch":  [
-                              "forward_bend",
-                              "standing_half_forward_fold"
-                          ],
-    "gentle_neck_release":  [
-                                "side_neck_stretch_left",
-                                "side_neck_stretch_right"
-                            ],
-    "cross_body_shoulder_stretch":  [
-                                        "shoulder_stretch"
-                                    ],
-    "standing_forward_fold":  [
-                                  "standing_half_forward_fold",
-                                  "forward_bend"
-                              ]
+  "cat_cow_pose": ["cat_cow_stretch", "spine_mobility"],
+  "cat_cow_stretch": ["cat_cow_pose", "spine_mobility"],
+  "neck_stretch": ["upper_trap_stretch", "neck_mobility"],
+  "butt_bridge": ["bridge"],
+  "bridge": ["butt_bridge"]
 }

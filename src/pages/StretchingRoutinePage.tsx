@@ -43,7 +43,7 @@ function ExerciseCard({ ex, idx, onClick }: ExerciseCardProps) {
       initial={{ opacity: 0, y: 20 }}
       whileInView={{ opacity: 1, y: 0 }}
       viewport={{ once: true }}
-      transition={{ delay: idx * 0.05, duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
+      transition={{ delay: Math.min(idx, 8) * 0.05, duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
       onClick={onClick}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
@@ -63,7 +63,7 @@ function ExerciseCard({ ex, idx, onClick }: ExerciseCardProps) {
 
         <div className="space-y-6 flex-1">
           <div className="rounded-2xl overflow-hidden bg-cream/50 p-2">
-            <StretchAnimationPlayer exPath={getAnimationPath(ex.name)} />
+            <StretchAnimationPlayer exPath={getAnimationPath(ex.name)} isPlaying={isHovered} isPreparing={false} />
           </div>
           <div className="space-y-3">
             <h3 className="text-3xl font-serif font-medium text-charcoal group-hover:text-gold transition-colors leading-tight">
@@ -239,7 +239,7 @@ export default function StretchingRoutinePage() {
 
   const categories = ['All', ...new Set(allExercises.map(ex => ex.category))];
 
-  const [customRoutine, setCustomRoutine] = useState<Exercise[] | null>(null); const [visibleCount, setVisibleCount] = useState(9);
+  const [customRoutine, setCustomRoutine] = useState<Exercise[] | null>(null);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -301,7 +301,7 @@ export default function StretchingRoutinePage() {
     return matchesSearch && matchesCategory;
   });
 
-  const filteredExercises = customRoutine || computedFilteredExercises; useEffect(() => { setVisibleCount(9); }, [searchQuery, selectedCategory, customRoutine]);
+  const filteredExercises = customRoutine || computedFilteredExercises;
 
   useEffect(() => {
     if (!isPlayingRoutine) return;
@@ -426,6 +426,14 @@ export default function StretchingRoutinePage() {
     setIsPreparing(true);
     setPrepTime(10);
   };
+
+  const [displayedCount, setDisplayedCount] = useState(9);
+
+  const resetCount = () => setDisplayedCount(9);
+
+  useEffect(() => {
+    resetCount();
+  }, [searchQuery, selectedCategory, customRoutine]);
 
   return (
     <div className="bg-cream selection:bg-gold pb-20">
@@ -805,20 +813,23 @@ export default function StretchingRoutinePage() {
         )}
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-          {filteredExercises.slice(0, visibleCount).map((ex, idx) => (
+          {filteredExercises.slice(0, displayedCount).map((ex, idx) => (
             <ExerciseCard key={ex.id} ex={ex} idx={idx} onClick={() => setSelectedExercise(ex)} />
           ))}
         </div>
 
-{visibleCount < filteredExercises.length && (
-  <div className="flex justify-center mt-10">
-    <button onClick={() => setVisibleCount(prev => prev + 9)} className="px-6 py-3 bg-charcoal text-white rounded-xl hover:bg-black transition-all">
-      Load More ({filteredExercises.length - visibleCount})
-    </button>
-  </div>
-)}
+        {filteredExercises.length > displayedCount && (
+          <div className="mt-16 flex justify-center">
+            <button
+              onClick={() => setDisplayedCount(prev => prev + 9)}
+              className="px-8 py-4 border border-charcoal text-charcoal rounded-xl font-bold uppercase tracking-widest text-[10px] hover:bg-charcoal hover:text-cream transition-all duration-300 shadow-sm"
+            >
+              Load More Protocols
+            </button>
+          </div>
+        )}
 
-{filteredExercises.length === 0 && (
+        {filteredExercises.length === 0 && (
           <div className="text-center py-32">
             <p className="text-charcoal/40 font-serif italic text-2xl">No protocols found matching your criteria.</p>
           </div>
