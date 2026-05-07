@@ -152,7 +152,7 @@ export default function StretchDetailPage() {
           </div>
           
           {exercise?.name && (
-            <StretchAnimationPlayer exPath={getAnimationPath(exercise.name)} />
+            <StretchAnimationPlayer exPath={getAnimationPath(exercise.name)} exName={exercise.name} />
           )}
 
           <div className="prose prose-xl prose-slate max-w-none prose-headings:font-serif prose-headings:italic prose-headings:text-charcoal prose-p:text-charcoal/70 prose-p:leading-relaxed antialiased">

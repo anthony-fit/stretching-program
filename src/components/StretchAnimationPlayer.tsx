@@ -5,6 +5,7 @@ import manifest from "../assets/metadata/animation_manifest.json";
 
 interface StretchAnimationPlayerProps {
   exPath: string;
+  exName?: string;
   isPlaying?: boolean;
   isPreparing?: boolean;
 }
@@ -18,6 +19,7 @@ const TRACKS = [
 
 export default function StretchAnimationPlayer({ 
   exPath, 
+  exName,
   isPlaying = true, 
   isPreparing = false 
 }: StretchAnimationPlayerProps) {
@@ -42,15 +44,15 @@ export default function StretchAnimationPlayer({
   // Extract slug and search term
   const requestedSlug = exPath.replace(/^\/animations\//, "").replace(/\.json$/, "");
   // Optimized search term: remove generic words but keep key identifiers
-  const searchTerm = requestedSlug
+  const searchTerm = exName || requestedSlug
     .replace(/_/g, " ")
     .replace(/\b(routine|exercise|pose)\b/gi, "")
     .trim();
 
   // API Fetching Logic
   useEffect(() => {
-    // Skip API calls for the default placeholder
-    if (requestedSlug === "default_stretch" || !searchTerm) {
+    // Skip API calls for the default placeholder if no exName is provided
+    if (!exName && (requestedSlug === "default_stretch" || !searchTerm)) {
       setGifUrl(null);
       setIsApiLoading(false);
       return;
