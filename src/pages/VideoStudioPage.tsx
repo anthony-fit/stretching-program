@@ -57,7 +57,7 @@ import {
 } from "lucide-react";
 import { MasterReviewPlayer } from "../components/MasterReviewPlayer";
 import StretchAnimationPlayer from "../components/StretchAnimationPlayer";
-import { Exercise } from "../data/exercises";
+import { Exercise, EXERCISE_DATABASE } from "../data/exercises";
 import {
   generateRoutineScript,
   generateVoiceover,
@@ -1368,6 +1368,20 @@ export default function VideoStudioPage() {
         setExercises(processed);
       } catch (error) {
         console.error("Failed to load exercises:", error);
+
+        console.log("[Exercise Library] Falling back to local EXERCISE_DATABASE");
+
+        setExercises(
+          EXERCISE_DATABASE.map((ex) => ({
+            ...ex,
+            id: ex.id || generateId(),
+            thumbnail:
+              ex.thumbnail ||
+              `https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?q=80&w=400&auto=format&fit=crop`,
+            videoUrl: ex.videoUrl || "#",
+          }))
+        );
+
       } finally {
         setIsLoading(false);
       }
