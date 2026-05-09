@@ -36,7 +36,7 @@ export function enforceGovernance(blueprint: any, targetDurationSeconds: number,
 
   // 2. Cognitive Load & Content Density
   const exerciseCounts: Record<string, number> = {};
-  
+
   blueprint.scenes = blueprint.scenes.map((scene: any, i: number) => {
     // Movement Variation Enforcement
     exerciseCounts[scene.exerciseId] = (exerciseCounts[scene.exerciseId] || 0) + 1;
@@ -49,13 +49,13 @@ export function enforceGovernance(blueprint: any, targetDurationSeconds: number,
     if (scene.script) {
       const words = scene.script.split(/\s+/);
       const wps = words.length / scene.duration;
-      
+
       if (wps > GOVERNANCE_RULES.MAX_SPOKEN_WORDS_PER_SEC) {
         console.warn(`[Governance] Scene ${i} word density (${wps.toFixed(1)} wps) exceeds cognitive load boundaries. Trimming narration.`);
         const allowedWords = Math.floor(scene.duration * GOVERNANCE_RULES.MAX_SPOKEN_WORDS_PER_SEC);
         scene.script = words.slice(0, allowedWords).join(" ");
       }
-      
+
       if (wps < 0.5 && scene.duration > 15) {
          // Too much silence for a long scene, maybe flag it.
       }
@@ -72,7 +72,7 @@ export function enforceGovernance(blueprint: any, targetDurationSeconds: number,
   blueprint.metadata = {
     blueprintVersion: "1.0.0",
     orchestrationVersion: "1.4.0",
-    compositionModel: "gemini-3-flash-preview",
+    compositionModel: "groq-llama-3.3-70b",
     governanceProfile: "strict-pacing-v1",
     generationSeed: Math.random().toString(36).substring(2, 10),
     title: blueprint.title,

@@ -6,7 +6,7 @@ import {
   generateSEOMetadata,
   generateSocialCaptions,
   generateVoiceover,
-} from "../services/gemini";
+} from "../services/groq";
 
 const router = Router();
 
@@ -59,8 +59,9 @@ router.post("/generate-voiceover", async (req, res) => {
     const result = await generateVoiceover(text);
 
     res.json({
-      audioUrl: result,
-      format: "wav",
+      text: result.text,
+      original: result.original,
+      format: "text",
     });
   } catch (error: any) {
     console.error("[AI ROUTE] generate-voiceover failed", error);

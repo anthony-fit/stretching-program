@@ -6,7 +6,7 @@ import fs from "fs";
 import { fileURLToPath } from "url";
 import { createServer as createViteServer } from "vite";
 import aiRoutes from "./src/server/routes/ai";
-import { validateGeminiEnvironment } from "./src/server/services/gemini";
+import { validateGroqEnvironment } from "./src/server/services/groq";
 
 dotenv.config();
 
@@ -32,8 +32,8 @@ async function startServer() {
     next();
   });
 
-  // Validate Gemini environment before handling requests
-  validateGeminiEnvironment();
+  // Validate Groq environment before handling requests
+  validateGroqEnvironment();
 
   // AI API routes
   app.use("/api", aiRoutes);
