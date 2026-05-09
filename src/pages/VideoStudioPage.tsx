@@ -1335,7 +1335,7 @@ export default function VideoStudioPage() {
   useEffect(() => {
     async function loadExercises() {
       try {
-        const response = await fetch("/api/all-exercises");
+        const response = await fetch("/data/exercises.json");
         if (!response.ok)
           throw new Error(`HTTP error! status: ${response.status}`);
 
