@@ -34,23 +34,23 @@ export function Logo({ className = '', iconOnly = false, light = false, size = '
         fill="none" 
         xmlns="http://www.w3.org/2000/svg"
       >
-        <rect width="120" height="120" rx="28" fill="#2EC4B6" />
+        <rect width="120" height="120" rx="28" fill="#F4B942" />
         
         {/* Flowing stretch body figure */}
         {/* Core arch (back/spine reaching up) */}
         <path 
           d="M 35 85 Q 45 40 80 35" 
-          stroke="white" 
+          stroke="#1F1E1D" 
           strokeWidth="10" 
           strokeLinecap="round" 
           strokeLinejoin="round" 
         />
         {/* Head */}
-        <circle cx="88" cy="26" r="9" fill="white" />
+        <circle cx="88" cy="26" r="9" fill="#1F1E1D" />
         {/* Extended leg */}
         <path 
           d="M 35 85 Q 70 85 88 68" 
-          stroke="white" 
+          stroke="#1F1E1D" 
           strokeWidth="10" 
           strokeLinecap="round" 
           strokeLinejoin="round" 
@@ -58,7 +58,7 @@ export function Logo({ className = '', iconOnly = false, light = false, size = '
         {/* Reaching arm */}
         <path 
           d="M 55 60 Q 75 50 90 60" 
-          stroke="white" 
+          stroke="#1F1E1D" 
           strokeWidth="10" 
           strokeLinecap="round" 
           strokeLinejoin="round" 
@@ -67,9 +67,12 @@ export function Logo({ className = '', iconOnly = false, light = false, size = '
       
       {/* Text */}
       {!iconOnly && (
-        <span className={`font-sans font-bold tracking-tight ${textSize} ${light ? 'text-cream' : 'text-charcoal'}`}>
-          Stretching Program
-        </span>
+        <div className="flex flex-col -space-y-1">
+          <span className={`font-serif italic font-bold tracking-tight ${textSize} ${light ? 'text-cream' : 'text-charcoal'}`}>
+            Stretching Pro
+          </span>
+          <span className="text-[10px] font-black uppercase tracking-[0.3em] text-gold">Studio</span>
+        </div>
       )}
     </div>
   );

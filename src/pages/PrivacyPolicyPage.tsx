@@ -12,7 +12,7 @@ export default function PrivacyPolicyPage() {
             Effective Date: May 3, 2026.
           </p>
           <p>
-            This Privacy Policy describes how Stretching Program ("we", "us", or "our") collects, uses, protects, and handles your personal information when you visit and interact with our website, StretchingProgram.com (the "Site"). We are committed to protecting your privacy and ensuring you have a safe online experience. By using our Site, you consent to the data practices described in this statement.
+            This Privacy Policy describes how Stretching Program ("we", "us", or "our") collects, uses, protects, and handles your personal information when you visit and interact with our website. We are committed to protecting your privacy and ensuring you have a safe online experience. By using our Site, you consent to the data practices described in this statement.
           </p>
 
           <h2 className="text-xl font-bold mt-8 mb-4">Information We Collect</h2>

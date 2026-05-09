@@ -4,35 +4,51 @@ export function EzoicVideo() {
   const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (!containerRef.current) return;
+    const el = containerRef.current;
+    if (!el) return;
     
-    // Clear out to prevent duplicated script tags on re-renders/HMR
-    containerRef.current.innerHTML = '';
+    // Safety check to avoid double initialization
+    if (el.hasAttribute('data-initialized')) return;
+    el.setAttribute('data-initialized', 'true');
+
+    const w = window as any;
+    if (!Array.isArray(w.openVideoPlayers)) {
+      w.openVideoPlayers = [];
+    }
     
-    // Create inline script
-    const inlineScript = document.createElement('script');
-    inlineScript.setAttribute('data-ezscrex', 'false');
-    inlineScript.setAttribute('data-cfasync', 'false');
-    inlineScript.textContent = `(window.openVideoPlayers = window.openVideoPlayers || []).push({target: document.currentScript});`;
+    // Check if element is already registered (handles React Strict Mode double-mounts)
+    const isRegistered = w.openVideoPlayers.some((p: any) => p.target === el);
+    if (!isRegistered) {
+      w.openVideoPlayers.push({ target: el });
+    }
+
+    if (!document.querySelector('script[src="https://open.video/video.js"]')) {
+      const script = document.createElement('script');
+      script.src = 'https://open.video/video.js';
+      script.async = true;
+      script.setAttribute('data-ezscrex', 'false');
+      script.setAttribute('data-cfasync', 'false');
+      script.id = 'ezoic-player-script';
+      document.body.appendChild(script);
+    }
     
-    // Create external script
-    const externalScript = document.createElement('script');
-    externalScript.async = true;
-    externalScript.setAttribute('data-ezscrex', 'false');
-    externalScript.setAttribute('data-cfasync', 'false');
-    externalScript.src = "https://open.video/video.js";
-    
-    // Append to container
-    containerRef.current.appendChild(inlineScript);
-    containerRef.current.appendChild(externalScript);
-    
+    // Cleanup on unmount/route transitions to prevent memory leaks
+    return () => {
+      if (Array.isArray(w.openVideoPlayers)) {
+         w.openVideoPlayers = w.openVideoPlayers.filter((p: any) => p.target !== el);
+      }
+      el.removeAttribute('data-initialized');
+    };
   }, []);
 
   return (
     <div 
-      ref={containerRef} 
       className="w-full aspect-video rounded-xl overflow-hidden bg-charcoal/5 flex items-center justify-center relative border border-charcoal/10"
     >
+      <div 
+        ref={containerRef}
+        className="w-full h-full [&>iframe]:w-full [&>iframe]:h-full [&>div]:w-full [&>div]:h-full"
+      />
       {/* Fallback layout before video loads, or while in AI Studio preview */}
       <div className="absolute inset-0 flex items-center justify-center text-charcoal/20 z-[-1] !hidden">
         Video Player

@@ -15,6 +15,11 @@ export default function TermsPage() {
             Welcome to Stretching Program. By accessing this website, you are agreeing to be bound by these website Terms and Conditions of Use, all applicable laws and regulations, and agree that you are responsible for compliance with any applicable local laws. If you do not agree with any of these terms, you are prohibited from using or accessing this site. The materials contained in this website are protected by applicable copyright and trademark law.
           </p>
 
+          <h2 className="text-xl font-bold mt-8 mb-4">Content Creation & AI</h2>
+          <p>
+            Stretching Program provides tools to generate video content using an automated database of exercise animations. You are responsible for the content you generate and any downstream use of that content on social media platforms. While our database is verified, the automated sequencing may require professional review before being followed as a physical routine.
+          </p>
+
           <h2 className="text-xl font-bold mt-8 mb-4 text-red-600">No Medical Advice Disclaimer</h2>
           <p>
             The information, including but not limited to, text, graphics, images, and other material contained on this website are for informational and educational purposes only. No material on this site is intended to be a substitute for professional medical advice, diagnosis, or treatment. Always seek the advice of your physician or other qualified healthcare provider with any questions you may have regarding a medical condition or treatment and before undertaking a new healthcare regimen.
@@ -25,7 +30,7 @@ export default function TermsPage() {
 
           <h2 className="text-xl font-bold mt-8 mb-4">Use at Your Own Risk</h2>
           <p>
-            You agree that your use of our features, routines, exercises, and content is entirely at your own risk. Stretching Program and its creators are not liable for any injuries, damages, or health issues arising from the usage of the stretching programs provided by this site. You acknowledge that physical exercise inherently carries a risk of injury, and you assume full responsibility for any and all injuries or damages you might suffer.
+            You agree that your use of our features, routines, exercises, and content is entirely at your own risk. Stretching Program and its creators are not liable for any injuries, damages, or health issues arising from the usage of the programs provided by this site. You acknowledge that physical exercise inherently carries a risk of injury, and you assume full responsibility for any and all injuries or damages you might suffer.
           </p>
           
           <h2 className="text-xl font-bold mt-8 mb-4">Intellectual Property</h2>

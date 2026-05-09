@@ -9,7 +9,7 @@ export default function ContactPage() {
         
         <div className="space-y-6 text-charcoal/80 leading-relaxed max-w-none prose">
           <p>
-            At Stretching Program, we value our community of users and are always striving to improve our platform. Whether you have a question about a specific routine, you're experiencing technical difficulties, or you simply want to share a success story about how stretching has improved your daily life, we would love to hear from you.
+            At Stretching Pro, we value our community of movement specialists and are always striving to improve our platform. Whether you have a question about the Studio, you're experiencing technical difficulties, or you have a specific request for the exercise systems, we would love to hear from you.
           </p>
 
           <h2 className="text-xl font-bold mt-8 mb-4">How to Reach Us</h2>
@@ -23,12 +23,12 @@ export default function ContactPage() {
 
           <h2 className="text-xl font-bold mt-8 mb-4">Feedback and Suggestions</h2>
           <p>
-            Is there a specific muscle group you feel we haven't covered well enough? Do you have an idea for a new feature, like longer hold times or different aesthetic themes? Your feedback is incredibly important to us. It helps dictate the direction of our future updates. Please don't hesitate to email us your thoughts, no matter how small.
+            Is there a specific feature you'd like to see in the Studio? Different aspect ratios, new motion graphics, or specific exercise additions? Your feedback is incredibly important to us. Please don't hesitate to email us your thoughts.
           </p>
           
-          <h2 className="text-xl font-bold mt-8 mb-4">Business & Partnerships</h2>
+          <h2 className="text-xl font-bold mt-8 mb-4">Social Media Creators</h2>
           <p>
-            If you represent a brand, publication, or health initiative and are interested in partnering with Stretching Program, please include "PARTNERSHIP" in the subject line of your email. We are open to discussing content syndication, corporate wellness programs, and other collaborative opportunities that align with our mission of making effective stretching accessible to everyone.
+            If you are a large-scale automation channel or a content creator looking to integrate Stretching Pro into your workflow at scale, please reach out to discuss custom solutions and early access to new automation features.
           </p>
 
           <h2 className="text-xl font-bold mt-8 mb-4">Stay Connected</h2>

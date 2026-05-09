@@ -1,5 +1,7 @@
 export function normalize(str: string) {
+  if (!str) return "";
   return str
+    .toString()
     .toLowerCase()
     .replace(/['’]/g, "")
     .replace(/[^a-z0-9]/g, " ")

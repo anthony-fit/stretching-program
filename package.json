@@ -1,13 +1,13 @@
 {
-  "name": "react-example",
+  "name": "stretching-pro",
   "private": true,
-  "version": "0.0.0",
+  "version": "0.1.0",
   "type": "module",
   "scripts": {
     "prebuild": "node scripts/generateAnimationManifest.js && npx tsx scripts/generateSitemap.ts",
     "dev": "npm run prebuild && tsx server.ts",
     "start": "node server.ts",
-    "build": "npm run prebuild && vite build && tsx generate-seo-pages.tsx",
+    "build": "npm run prebuild && vite build && npx tsx generate-seo-pages.tsx",
     "preview": "vite preview",
     "clean": "rm -rf dist",
     "lint": "tsc --noEmit"
@@ -32,6 +32,7 @@
     "react-router-dom": "^7.14.2",
     "remark-gfm": "^4.0.1",
     "tailwind-merge": "^3.5.0",
+    "tsx": "^4.21.0",
     "vite": "^6.2.0"
   },
   "devDependencies": {
@@ -40,7 +41,6 @@
     "@types/node": "^22.14.0",
     "autoprefixer": "^10.4.21",
     "tailwindcss": "^4.1.14",
-    "tsx": "^4.21.0",
     "typescript": "~5.8.2",
     "vite": "^6.2.0",
     "vite-plugin-prerender": "^1.0.8"

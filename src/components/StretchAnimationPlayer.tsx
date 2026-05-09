@@ -8,6 +8,8 @@ interface StretchAnimationPlayerProps {
   exName?: string;
   isPlaying?: boolean;
   isPreparing?: boolean;
+  hideControls?: boolean;
+  framingMode?: "fit" | "focus" | "cinematic";
 }
 
 const TRACKS = [
@@ -21,7 +23,9 @@ export default function StretchAnimationPlayer({
   exPath, 
   exName,
   isPlaying = true, 
-  isPreparing = false 
+  isPreparing = false,
+  hideControls = false,
+  framingMode = "cinematic"
 }: StretchAnimationPlayerProps) {
   const [frame, setFrame] = useState(1);
   const [isLoaded, setIsLoaded] = useState(false);
@@ -30,6 +34,7 @@ export default function StretchAnimationPlayer({
   const [gifUrl, setGifUrl] = useState<string | null>(null);
   const [imageUrls, setImageUrls] = useState<string[]>([]);
   const [isApiLoading, setIsApiLoading] = useState(false);
+  const [mediaStats, setMediaStats] = useState<{w: number, h: number} | null>(null);
   
   // Music State
   const [isMusicMenuOpen, setIsMusicMenuOpen] = useState(false);
@@ -153,7 +158,11 @@ export default function StretchAnimationPlayer({
     playAudio();
 
     return () => {
-      audioRef.current?.pause();
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current.src = "";
+        audioRef.current.load();
+      }
     };
   }, [isPlaying, isPreparing, currentTrack.url, hasInteracted]);
 
@@ -235,84 +244,139 @@ export default function StretchAnimationPlayer({
   const frameSrc = !gifUrl ? `${framesBasePath}/frame_${String(frame).padStart(3, "0")}.webp` : "";
   const dynamicGifUrl = imageUrls.length > 0 ? imageUrls[frame - 1] : gifUrl;
 
+  const getFramingStyles = () => {
+    if (!hideControls) return { initial: { scale: 1, y: 0 }, animate: { scale: 1, y: 0 }, className: "p-4 md:p-12" };
+    
+    let effectiveMode = framingMode;
+    let modifiers = { scaleMod: 1, yMod: 1 };
+    
+    if (mediaStats) {
+      const isLowRes = mediaStats.w < 600 || mediaStats.h < 600;
+      const ratio = mediaStats.w / mediaStats.h;
+      const isPortrait = ratio < 0.8;
+      const isLandscape = ratio > 1.2;
+      const isSquareLike = ratio >= 0.8 && ratio <= 1.2;
+      
+      if (isLowRes) {
+        effectiveMode = "fit"; // Downgrade
+      } else if (isPortrait && effectiveMode === "cinematic") {
+        effectiveMode = "focus"; // Portrait extreme zooms clip too much
+      }
+      
+      // Close-up / subtle motion reduction for squares
+      if (isSquareLike && effectiveMode === "cinematic") {
+         modifiers = { scaleMod: 0.5, yMod: 0.5 }; // reduce intensity
+      } else if (isLandscape && effectiveMode === "cinematic") {
+         modifiers = { scaleMod: 1.2, yMod: 1.5 }; // stronger sweep for landscapes
+      }
+    }
+    
+    switch (effectiveMode) {
+      case "fit":
+        return { 
+          initial: { scale: 0.95, y: 0 }, 
+          animate: { scale: 0.95, y: 0 }, 
+          className: "p-8 md:p-12" // Padding avoids edge overlaps
+        };
+      case "focus":
+        return { 
+          initial: { scale: 1.02, y: 0 }, 
+          animate: { scale: 1.02, y: 0 }, 
+          className: "p-2"
+        };
+      case "cinematic":
+      default:
+        return { 
+          initial: { scale: 1.0 + (0.05 * modifiers.scaleMod), y: 5 * modifiers.yMod }, 
+          animate: { scale: 1.0 + (0.15 * modifiers.scaleMod), y: -5 * modifiers.yMod }, 
+          className: "p-0" 
+        };
+    }
+  };
+
+  const framing = getFramingStyles();
+
   return (
     <div 
       onClick={handleInteraction}
-      className={`relative w-full aspect-[4/5] md:aspect-video bg-white rounded-[3rem] overflow-hidden border border-charcoal/5 shadow-[inset_0_2px_10px_rgba(0,0,0,0.03)] group transition-all duration-700 ${isPreparing ? 'bg-cream/20' : ''}`}
+      className={`relative w-full z-0 ${hideControls ? 'h-full bg-transparent' : 'aspect-[4/5] md:aspect-video bg-white rounded-[3rem] border border-charcoal/5 shadow-[inset_0_2px_10px_rgba(0,0,0,0.03)]'} overflow-hidden group transition-all duration-700 ${isPreparing ? 'bg-cream/20' : ''}`}
+      style={{ isolation: 'isolate' }}
     >
       {/* Immersive Audio Controls */}
-      <div className="absolute top-8 left-8 right-8 flex items-center justify-between z-40 opacity-0 group-hover:opacity-100 transition-opacity duration-500">
-        <div className="relative">
-          <div 
-            onClick={(e) => {
-              e.stopPropagation();
-              handleInteraction();
-              setIsMusicMenuOpen(!isMusicMenuOpen);
-            }}
-            className="flex items-center gap-3 bg-white/90 backdrop-blur-xl px-4 py-2.5 rounded-2xl border border-white/40 shadow-sm transition-all hover:bg-white cursor-pointer"
-          >
-              <div className="w-8 h-8 rounded-lg bg-gradient-to-tr from-[#ff00e5] to-[#7000ff] flex items-center justify-center text-white shadow-lg">
-                  <Music size={14} />
-              </div>
-              <div className="flex flex-col">
-                <span className="text-[10px] font-black text-charcoal/80 uppercase tracking-[2px] leading-none mb-1">Select music</span>
-                <span className="text-[8px] font-bold text-charcoal/40 uppercase tracking-widest leading-none">{currentTrack.name}</span>
-              </div>
-          </div>
-
-          <AnimatePresence>
-            {isMusicMenuOpen && (
-              <motion.div 
-                initial={{ opacity: 0, y: 10, scale: 0.95 }}
-                animate={{ opacity: 1, y: 0, scale: 1 }}
-                exit={{ opacity: 0, y: 10, scale: 0.95 }}
-                onMouseLeave={() => setIsMusicMenuOpen(false)}
-                className="absolute top-full mt-3 left-0 w-56 bg-white/95 backdrop-blur-2xl rounded-3xl border border-charcoal/5 shadow-2xl p-2 z-50 overflow-hidden"
-              >
-                {TRACKS.map((track, i) => (
-                  <button 
-                    key={track.id}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleInteraction();
-                      setCurrentTrackIndex(i);
-                      setIsMusicMenuOpen(false);
-                    }}
-                    className={`w-full flex items-center justify-between px-4 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all ${currentTrackIndex === i ? 'bg-[#ff00e5] text-white shadow-lg shadow-pink-500/20' : 'text-charcoal/60 hover:bg-charcoal/5'}`}
-                  >
-                    {track.name}
-                    {currentTrackIndex === i ? <Check size={12} strokeWidth={3} /> : <div className="w-1.5 h-1.5 rounded-full bg-charcoal/10" />}
-                  </button>
-                ))}
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </div>
-        
-        <div className="flex items-center gap-6 bg-white/40 backdrop-blur-md px-6 py-3 rounded-full border border-white/20 text-charcoal/30">
-            <SkipBack 
-              size={18} 
-              onClick={(e) => { 
-                e.stopPropagation(); 
+      {!hideControls && (
+        <div className="absolute top-8 left-8 right-8 flex items-center justify-between z-40 opacity-0 group-hover:opacity-100 transition-opacity duration-500">
+          <div className="relative">
+            <div 
+              onClick={(e) => {
+                e.stopPropagation();
                 handleInteraction();
-                setCurrentTrackIndex(prev => (prev - 1 + TRACKS.length) % TRACKS.length); 
+                setIsMusicMenuOpen(!isMusicMenuOpen);
               }}
-              className="hover:text-[#ff00e5] cursor-pointer transition-colors" 
-            />
-            <div onClick={toggleMusic}>
-              <PlayIcon size={18} className="fill-current text-[#ff00e5] hover:scale-110 cursor-pointer transition-transform" />
+              className="flex items-center gap-3 bg-white/90 backdrop-blur-xl px-4 py-2.5 rounded-2xl border border-white/40 shadow-sm transition-all hover:bg-white cursor-pointer"
+            >
+                <div className="w-8 h-8 rounded-lg bg-gradient-to-tr from-[#ff00e5] to-[#7000ff] flex items-center justify-center text-white shadow-lg">
+                    <Music size={14} />
+                </div>
+                <div className="flex flex-col">
+                  <span className="text-[10px] font-black text-charcoal/80 uppercase tracking-[2px] leading-none mb-1">Select music</span>
+                  <span className="text-[8px] font-bold text-charcoal/40 uppercase tracking-widest leading-none">{currentTrack.name}</span>
+                </div>
             </div>
-            <SkipForward 
-              size={18} 
-              onClick={(e) => { 
-                e.stopPropagation(); 
-                handleInteraction();
-                setCurrentTrackIndex(prev => (prev + 1) % TRACKS.length); 
-              }}
-              className="hover:text-[#ff00e5] cursor-pointer transition-colors" 
-            />
+
+            <AnimatePresence>
+              {isMusicMenuOpen && (
+                <motion.div 
+                  initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                  onMouseLeave={() => setIsMusicMenuOpen(false)}
+                  className="absolute top-full mt-3 left-0 w-56 bg-white/95 backdrop-blur-2xl rounded-3xl border border-charcoal/5 shadow-2xl p-2 z-50 overflow-hidden"
+                >
+                  {TRACKS.map((track, i) => (
+                    <button 
+                      key={track.id}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleInteraction();
+                        setCurrentTrackIndex(i);
+                        setIsMusicMenuOpen(false);
+                      }}
+                      className={`w-full flex items-center justify-between px-4 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all ${currentTrackIndex === i ? 'bg-[#ff00e5] text-white shadow-lg shadow-pink-500/20' : 'text-charcoal/60 hover:bg-charcoal/5'}`}
+                    >
+                      {track.name}
+                      {currentTrackIndex === i ? <Check size={12} strokeWidth={3} /> : <div className="w-1.5 h-1.5 rounded-full bg-charcoal/10" />}
+                    </button>
+                  ))}
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+          
+          <div className="flex items-center gap-6 bg-white/40 backdrop-blur-md px-6 py-3 rounded-full border border-white/20 text-charcoal/30">
+              <SkipBack 
+                size={18} 
+                onClick={(e) => { 
+                  e.stopPropagation(); 
+                  handleInteraction();
+                  setCurrentTrackIndex(prev => (prev - 1 + TRACKS.length) % TRACKS.length); 
+                }}
+                className="hover:text-[#ff00e5] cursor-pointer transition-colors" 
+              />
+              <div onClick={toggleMusic}>
+                <PlayIcon size={18} className="fill-current text-[#ff00e5] hover:scale-110 cursor-pointer transition-transform" />
+              </div>
+              <SkipForward 
+                size={18} 
+                onClick={(e) => { 
+                  e.stopPropagation(); 
+                  handleInteraction();
+                  setCurrentTrackIndex(prev => (prev + 1) % TRACKS.length); 
+                }}
+                className="hover:text-[#ff00e5] cursor-pointer transition-colors" 
+              />
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Background Grid Pattern */}
       <div className="absolute inset-0 opacity-[0.03] pointer-events-none" 
@@ -373,7 +437,12 @@ export default function StretchAnimationPlayer({
         )}
       </AnimatePresence>
 
-      <div className="absolute inset-0 flex items-center justify-center p-4 md:p-12 relative overflow-hidden">
+      <motion.div 
+        initial={framing.initial}
+        animate={framing.animate}
+        transition={{ duration: 8, ease: "easeInOut", repeat: Infinity, repeatType: "reverse" }}
+        className={`absolute inset-0 flex items-center justify-center ${framing.className} pointer-events-none`}
+      >
         {gifUrl ? (
           <>
             {imageUrls.length > 1 ? (
@@ -383,9 +452,10 @@ export default function StretchAnimationPlayer({
                   src={url}
                   alt={searchTerm}
                   referrerPolicy="no-referrer"
-                  onLoad={() => {
+                  onLoad={(e) => {
                     setIsLoaded(true);
                     setHasError(false);
+                    setMediaStats({ w: e.currentTarget.naturalWidth, h: e.currentTarget.naturalHeight });
                   }}
                   onError={() => {
                     setGifUrl(null);
@@ -401,10 +471,11 @@ export default function StretchAnimationPlayer({
                 src={dynamicGifUrl || undefined}
                 alt={searchTerm}
                 referrerPolicy="no-referrer"
-                onLoad={() => {
+                onLoad={(e) => {
                   console.log("GIF Loaded successfully:", dynamicGifUrl);
                   setIsLoaded(true);
                   setHasError(false);
+                  setMediaStats({ w: e.currentTarget.naturalWidth, h: e.currentTarget.naturalHeight });
                 }}
                 onError={(e) => {
                   console.warn("GIF specifically failed to load, falling back...", dynamicGifUrl);
@@ -423,9 +494,10 @@ export default function StretchAnimationPlayer({
             initial={{ opacity: 0.8 }}
             animate={{ opacity: 1 }}
             transition={{ duration: 0.2 }}
-            onLoad={() => {
+            onLoad={(e) => {
               setIsLoaded(true);
               setHasError(false);
+              setMediaStats({ w: e.currentTarget.naturalWidth, h: e.currentTarget.naturalHeight });
             }}
             onError={() => {
               console.warn("Animation image load failed for:", currentSlug);
@@ -441,15 +513,17 @@ export default function StretchAnimationPlayer({
             className={`w-full h-full object-contain mix-blend-multiply transition-opacity duration-300 ${isLoaded ? 'opacity-100' : 'opacity-0'}`}
           />
         )}
-      </div>
+      </motion.div>
 
       {/* Status Overlay */}
-      <div className="absolute bottom-4 left-6 flex items-center gap-2">
-        <div className={`w-1.5 h-1.5 rounded-full ${isPlaying ? 'bg-green-500 animate-pulse' : 'bg-charcoal/20'}`} />
-        <span className="text-[8px] font-bold uppercase tracking-widest text-charcoal/30">
-          {isPlaying ? 'Protocol Active' : 'Paused'}
-        </span>
-      </div>
+      {!hideControls && (
+        <div className="absolute bottom-4 left-6 flex items-center gap-2">
+          <div className={`w-1.5 h-1.5 rounded-full ${isPlaying ? 'bg-green-500 animate-pulse' : 'bg-charcoal/20'}`} />
+          <span className="text-[8px] font-bold uppercase tracking-widest text-charcoal/30">
+            {isPlaying ? 'Protocol Active' : 'Paused'}
+          </span>
+        </div>
+      )}
 
       {useFallback && isLoaded && (
         <div className="absolute top-4 right-6">

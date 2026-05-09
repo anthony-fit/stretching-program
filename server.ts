@@ -24,6 +24,12 @@ async function startServer() {
   app.use(cors());
   app.use(express.json());
 
+  // Logging middleware
+  app.use((req, res, next) => {
+    console.log(`[Server] ${req.method} ${req.url}`);
+    next();
+  });
+
   // Local GIF Proxy & Cache
   app.get("/api/proxy-gif", async (req, res) => {
     const url = req.query.url as string;
@@ -58,10 +64,18 @@ async function startServer() {
 
   let freeExerciseDB: any[] | null = null;
   const getFreeExerciseDB = async () => {
-      if (freeExerciseDB) return freeExerciseDB;
+      if (freeExerciseDB && freeExerciseDB.length > 0) return freeExerciseDB;
       try {
           console.log("[API init] Downloading free-exercise-db...");
-          const res = await fetch("https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/dist/exercises.json");
+          // Try main branch first
+          let res = await fetch("https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/dist/exercises.json");
+          if (!res.ok) {
+            // Fallback to master if main fails
+            res = await fetch("https://raw.githubusercontent.com/yuhonas/free-exercise-db/master/dist/exercises.json");
+          }
+          
+          if (!res.ok) throw new Error(`Fetch failed: ${res.status}`);
+          
           freeExerciseDB = await res.json();
           console.log(`[API init] Loaded ${freeExerciseDB?.length} exercises.`);
       } catch (e) {
@@ -91,13 +105,13 @@ async function startServer() {
       "cat cow": ["cat stretch", "spinal stretch", "cat"],
       "childs pose": ["child's pose", "childs", "child"],
       "hamstring stretch": ["hamstring stretch", "hamstring"],
-      "cobra stretch": ["spinal stretch", "looking at ceiling", "pelvic tilt into bridge", "cobra"],
+      "cobra stretch": ["lower back curl", "spinal stretch", "looking at ceiling", "pelvic tilt into bridge", "cobra"],
       "pigeon pose": ["lying glute", "seated glute", "piriformis", "pigeon"],
       "standing forward fold": ["standing toe touches", "toe touchers", "forward fold", "fold"],
       "forward fold": ["standing toe touches", "toe touchers", "forward fold", "fold"],
-      "butterfly pose": ["lying bent leg groin", "adductor", "intermediate groin stretch", "butterfly", "groin"],
-      "downward facing dog": ["pyramid", "runner's stretch", "downward facing balance", "downward dog"],
-      "downward dog": ["pyramid", "runner's stretch", "downward facing balance", "downward dog"],
+      "butterfly pose": ["adductor", "lying bent leg groin", "adductor/groin", "intermediate groin stretch", "butterfly", "groin"],
+      "downward facing dog": ["pyramid", "butt ups", "runner's stretch", "downward facing balance", "downward dog"],
+      "downward dog": ["pyramid", "butt ups", "runner's stretch", "downward facing balance", "downward dog"],
       "gentle neck release": ["side neck stretch", "chin to chest stretch", "neck-smr", "neck"],
       "neck stretch": ["side neck stretch", "chin to chest stretch", "neck-smr", "neck"],
       "cross body shoulder stretch": ["shoulder stretch", "round the world shoulder stretch", "cross body"],
@@ -157,6 +171,29 @@ async function startServer() {
     } catch (error) {
       console.error("API Flow Error:", error);
       res.status(500).json({ error: "API connection failed" });
+    }
+  });
+
+  // NEW: Get all exercises for Studio browsing
+  app.get(["/api/all-exercises", "/api/get-exercises"], async (req, res) => {
+    try {
+      const db = await getFreeExerciseDB();
+      // Return a lightweight version for the browser selection
+      const list = (db || []).map((ex: any) => ({
+        id: ex.id,
+        name: ex.name,
+        category: ex.category,
+        level: ex.level,
+        primaryMuscles: ex.primaryMuscles || [],
+        equipment: ex.equipment,
+        imageUrls: (ex.images || []).map((img: string) => 
+          `/api/proxy-gif?url=${encodeURIComponent(`https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/${img}`)}&name=${encodeURIComponent(ex.name)}`
+        )
+      }));
+      res.json(list);
+    } catch (error) {
+      console.error("[API Error] /api/all-exercises:", error);
+      res.status(500).json({ error: "Failed to fetch exercise database" });
     }
   });
 
