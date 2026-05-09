@@ -1,0 +1,12 @@
+{
+  "cat_cow_pose": "spine",
+  "cat_cow_stretch": "spine",
+  "neck_stretch": "neck",
+  "upper_trap_stretch": "neck",
+  "hamstring_stretch": "hamstring",
+  "forward_fold": "hamstring",
+  "shoulder_stretch": "shoulder",
+  "hip_flexor_stretch": "hip",
+  "butt_bridge": "glutes",
+  "bridge": "glutes"
+}

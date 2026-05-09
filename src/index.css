@@ -1,0 +1,76 @@
+@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;0,700;1,300;1,400;1,500;1,600;1,700&family=Inter:wght@100..900&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-serif: "Cormorant+Garamond", serif;
+  
+  --color-gold: #C5A059;
+  --color-charcoal: #121212;
+  --color-cream: #FDFCF8;
+  --color-gold-muted: rgba(197, 160, 89, 0.1);
+  --color-charcoal-muted: rgba(18, 18, 18, 0.1);
+
+  --shadow-premium: 0 10px 40px -10px rgba(0, 0, 0, 0.5);
+  --shadow-gold-glow: 0 0 30px rgba(197, 160, 89, 0.15);
+}
+
+@layer base {
+  html, body {
+    @apply bg-charcoal text-cream font-sans antialiased selection:bg-gold selection:text-charcoal overflow-x-hidden;
+    width: 100%;
+    position: relative;
+  }
+  
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-serif tracking-tight leading-tight;
+  }
+}
+
+@layer utilities {
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .no-scrollbar {
+    -ms-overflow-style: none; /* IE and Edge */
+    scrollbar-width: none; /* Firefox */
+  }
+
+  .custom-scrollbar::-webkit-scrollbar {
+    width: 3px;
+    height: 6px;
+  }
+  .custom-scrollbar::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    @apply bg-white/5 rounded-full;
+  }
+  .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    @apply bg-gold/20;
+  }
+
+  .premium-card {
+    @apply bg-white/[0.02] border border-white/[0.05] rounded-[2rem] backdrop-blur-3xl shadow-premium transition-all duration-500;
+  }
+  
+  .premium-card-hover {
+    @apply hover:bg-white/[0.04] hover:border-white/[0.1] hover:translate-y-[-2px] hover:shadow-gold-glow;
+  }
+
+  .text-glow {
+    text-shadow: 0 0 20px rgba(255, 255, 255, 0.2);
+  }
+
+  .mask-fade-bottom {
+    mask-image: linear-gradient(to bottom, black 80%, transparent 100%);
+  }
+
+  .mask-fade-right {
+    mask-image: linear-gradient(to right, black 80%, transparent 100%);
+  }
+
+  .mask-fade-edges {
+    mask-image: linear-gradient(to right, transparent, black 5%, black 95%, transparent);
+  }
+}

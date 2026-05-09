@@ -1,0 +1,7 @@
+{
+  "cat_cow_pose": ["cat_cow_stretch", "spine_mobility"],
+  "cat_cow_stretch": ["cat_cow_pose", "spine_mobility"],
+  "neck_stretch": ["upper_trap_stretch", "neck_mobility"],
+  "butt_bridge": ["bridge"],
+  "bridge": ["butt_bridge"]
+}
