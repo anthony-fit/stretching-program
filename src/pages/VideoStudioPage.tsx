@@ -1352,19 +1352,40 @@ export default function VideoStudioPage() {
           throw new Error("API returned non-array data");
 
         // Standardize data from API to match Exercise interface
-        const processed = data.map((ex: any) => ({
-          id: ex.id || generateId(),
-          name: ex.name || "Untitled Exercise",
-          category: ex.category || "Fitness",
-          level: ex.level || "Beginner",
-          focus: ex.focus || ["Full Body"],
-          description: `Strategic ${ex.name} designed for optimal mobility and longevity. Part of the Grow Young Fitness protocol.`,
-          thumbnail:
-            ex.imageUrls?.[0] ||
-            ex.thumbnail ||
-            `https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?q=80&w=400&auto=format&fit=crop`,
-          videoUrl: "#",
-        }));
+        const processed = data.map((ex: any) => {
+const firstImage = ex.images?.[0];
+
+const assetUrl = firstImage
+? `https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/${firstImage}`
+: null;
+
+return {
+id: ex.id || generateId(),
+name: ex.name || "Untitled Exercise",
+category: ex.category || "Fitness",
+level: ex.level || "Beginner",
+
+focus:
+ex.primaryMuscles?.length > 0
+? ex.primaryMuscles
+: ["Full Body"],
+
+description:
+ex.instructions?.join(" ") ||
+`Strategic ${ex.name} designed for mobility.`,
+
+thumbnail:
+assetUrl ||
+`https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?q=80&w=400&auto=format&fit=crop`,
+
+videoUrl: assetUrl || "#",
+
+instructions: ex.instructions || [],
+equipment: ex.equipment || [],
+targetMuscles: ex.primaryMuscles || [],
+secondaryMuscles: ex.secondaryMuscles || [],
+};
+});
         setExercises(processed);
       } catch (error) {
         console.error("Failed to load exercises:", error);
