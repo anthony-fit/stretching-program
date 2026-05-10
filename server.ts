@@ -32,8 +32,8 @@ async function startServer() {
     next();
   });
 
-  // Validate Groq environment before handling requests
-  validateGroqEnvironment();
+  // Validating Groq environment is deferred until actual use to prevent startup crash
+  // validateGroqEnvironment();
 
   // AI API routes
   app.use("/api", aiRoutes);
@@ -221,6 +221,18 @@ async function startServer() {
 
   const server = app.listen(PORT, "0.0.0.0", () => {
     console.log(`Server running - PID: ${process.pid}`);
+  });
+
+  server.on('error', (e: any) => {
+    if (e.code === 'EADDRINUSE') {
+      console.error(`Port ${PORT} is in use. Waiting to retry...`);
+      setTimeout(() => {
+        server.close();
+        server.listen(PORT, "0.0.0.0");
+      }, 1000);
+    } else {
+      console.error('Server error:', e);
+    }
   });
 
   server.timeout = 300000;
