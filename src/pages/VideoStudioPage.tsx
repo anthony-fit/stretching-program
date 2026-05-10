@@ -3830,15 +3830,12 @@ secondaryMuscles: ex.secondaryMuscles || [],
 
   return (
     <>
-      <div className="fixed top-2 left-2 z-[9999] bg-red-500 text-white text-xs px-2 py-1">
-        STUDIO LOADED
-      </div>
       <motion.div
       initial={V.fadeUp.initial}
       animate={V.fadeUp.animate}
       exit={V.fadeUp.exit}
       transition={{ duration: transitionClasses.cinematic.duration * motionMultiplier, ease: transitionClasses.cinematic.ease }}
-      className={`flex-1 min-h-0 w-full max-w-full bg-charcoal text-cream flex flex-col overflow-hidden font-sans antialiased relative transition-all duration-[2000ms] ease-in-out ${ambientClasses}`}
+      className={`flex-1 min-h-0 w-full max-w-full bg-charcoal text-cream flex flex-col overflow-x-hidden md:overflow-hidden font-sans antialiased relative transition-all duration-[2000ms] ease-in-out ${ambientClasses}`}
     >
       {/* Adaptive Atmosphere Layer */}
       {generationMessage && (
@@ -4394,9 +4391,9 @@ secondaryMuscles: ex.secondaryMuscles || [],
         )}
       </AnimatePresence>
 
-      <div className="flex-1 flex flex-col md:flex-row overflow-hidden min-h-0 min-w-0 w-full">
+      <div className="flex-1 flex flex-col md:flex-row overflow-x-hidden md:overflow-hidden min-h-0 min-w-0 w-full">
         {/* Sidebar - Assets & Search (Order 2 on mobile) */}
-        <div className="w-full md:w-80 border-t md:border-t-0 md:border-r border-cream/10 flex flex-col bg-charcoal md:bg-charcoal/80 md:backdrop-blur-md order-2 md:order-1 h-[40%] md:h-auto overflow-hidden shrink-0 min-h-0">
+        <div className="w-full md:w-80 border-t md:border-t-0 md:border-r border-cream/10 flex flex-col bg-charcoal md:bg-charcoal/80 md:backdrop-blur-md order-2 md:order-1 md:h-auto overflow-x-hidden md:overflow-hidden shrink-0 min-h-0">
           {/* Ad Space Placeholder */}
           <div className="hidden md:block p-3 border-b border-cream/5 text-center shrink-0">
             <span className="text-[8px] font-black uppercase tracking-[0.3em] text-cream/20">
@@ -4887,7 +4884,7 @@ secondaryMuscles: ex.secondaryMuscles || [],
         </div>
 
         {/* Main Preview Area (Order 1 on mobile) */}
-        <div className="flex-1 flex flex-col relative bg-[#0a0a0a] order-1 md:order-2 h-[60%] md:h-auto overflow-y-auto md:overflow-hidden overflow-x-hidden shrink-0 min-w-0 min-h-0 custom-scrollbar">
+        <div className="flex-1 flex flex-col relative bg-[#0a0a0a] order-1 md:order-2 md:h-auto overflow-y-auto md:overflow-hidden overflow-x-hidden shrink-0 min-w-0 min-h-0 custom-scrollbar">
           {/* Top Control Bar */}
           <div className="sticky top-0 z-50 h-14 md:h-20 border-b border-cream/10 flex items-center justify-between px-3 md:px-8 bg-charcoal/80 overflow-x-auto no-scrollbar shrink-0 backdrop-blur-xl">
             <div className="flex items-center gap-3 md:gap-6 flex-shrink-0">

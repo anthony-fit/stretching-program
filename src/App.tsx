@@ -20,8 +20,8 @@ export default function App() {
   useRuntimeObservability();
 
   return (
-    <div className={`${isStudio ? "h-[100dvh] overflow-hidden" : "min-h-screen overflow-x-hidden"} flex flex-col bg-cream selection:bg-gold w-full max-w-full overflow-x-hidden`}>
-      <main className={`flex-1 min-h-0 w-full overflow-x-hidden ${isStudio ? "flex flex-col relative overflow-hidden" : "relative"}`}>
+    <div className={`${isStudio ? "min-h-[100dvh] md:h-[100dvh] overflow-x-hidden md:overflow-hidden" : "min-h-screen overflow-x-hidden"} flex flex-col bg-cream selection:bg-gold w-full max-w-full overflow-x-hidden`}>
+      <main className={`flex-1 min-h-0 w-full overflow-x-hidden ${isStudio ? "flex flex-col relative overflow-x-hidden md:overflow-hidden" : "relative"}`}>
         <AnimatePresence mode="wait">
           <Routes location={location} key={location.pathname}>
             <Route path="/" element={<HomePage />} />
