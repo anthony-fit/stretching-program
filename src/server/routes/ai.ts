@@ -5,8 +5,8 @@ import {
   generateRoutineScript,
   generateSEOMetadata,
   generateSocialCaptions,
-  generateVoiceover,
 } from "../services/groq";
+
 
 const router = Router();
 
@@ -47,27 +47,6 @@ router.post("/generate-script", async (req, res) => {
 
     res.status(500).json({
       error: "Failed to generate routine script",
-      details: error?.message || "Unknown error",
-    });
-  }
-});
-
-router.post("/generate-voiceover", async (req, res) => {
-  try {
-    const { text } = req.body;
-
-    const result = await generateVoiceover(text);
-
-    res.json({
-      text: result.text,
-      original: result.original,
-      format: "text",
-    });
-  } catch (error: any) {
-    console.error("[AI ROUTE] generate-voiceover failed", error);
-
-    res.status(500).json({
-      error: "Failed to generate voiceover",
       details: error?.message || "Unknown error",
     });
   }

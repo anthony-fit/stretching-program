@@ -10,19 +10,20 @@ interface StretchAnimationPlayerProps {
   isPreparing?: boolean;
   hideControls?: boolean;
   framingMode?: "fit" | "focus" | "cinematic";
+  narrationText?: string;
 }
 
 const TRACKS = [
   { id: 'none', name: 'No Music', url: '' },
-  { id: 'ambient', name: 'Ambient Flow', url: 'https://p.scdn.co/mp3-preview/3e068c2d5d85c4974a68285f5e5509acc8d6b889' }, 
+  { id: 'ambient', name: 'Ambient Flow', url: 'https://p.scdn.co/mp3-preview/3e068c2d5d85c4974a68285f5e5509acc8d6b889' },
   { id: 'zen', name: 'Deep Zen', url: 'https://p.scdn.co/mp3-preview/a91345d9472e353273e89542a17ba7041a87611c' },
   { id: 'focus', name: 'Protocol Focus', url: 'https://p.scdn.co/mp3-preview/898d9b626e2e28a506a72e817fdf9e288a82d005' }
 ];
 
-export default function StretchAnimationPlayer({ 
-  exPath, 
+export default function StretchAnimationPlayer({
+  exPath,
   exName,
-  isPlaying = true, 
+  isPlaying = true,
   isPreparing = false,
   hideControls = false,
   framingMode = "cinematic"
@@ -35,16 +36,17 @@ export default function StretchAnimationPlayer({
   const [imageUrls, setImageUrls] = useState<string[]>([]);
   const [isApiLoading, setIsApiLoading] = useState(false);
   const [mediaStats, setMediaStats] = useState<{w: number, h: number} | null>(null);
-  
+
   // Music State
   const [isMusicMenuOpen, setIsMusicMenuOpen] = useState(false);
   const [currentTrackIndex, setCurrentTrackIndex] = useState(0); // Default to 'None' now
   const [hasInteracted, setHasInteracted] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const utteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
 
   const totalFrames = 12; // Standard sequence length
   const fps = 10;
-  
+
   const currentTrack = TRACKS[currentTrackIndex];
 
   // Extract slug and search term
@@ -69,11 +71,11 @@ export default function StretchAnimationPlayer({
       setGifUrl(null);
       try {
         const response = await fetch(`/api/get-stretch?name=${encodeURIComponent(searchTerm)}`);
-        
+
         if (!response.ok) throw new Error(`API error: ${response.status}`);
 
         const data = await response.json();
-        
+
         if (Array.isArray(data) && data.length > 0) {
           console.log(`[API] Results found for ${searchTerm}:`, data.length);
           // Find exercise that most closely matches the search term
@@ -108,9 +110,66 @@ export default function StretchAnimationPlayer({
     fetchExerciseGif();
   }, [searchTerm, requestedSlug]);
 
+  // Narration Speech Synthesis
+  useEffect(() => {
+    if (!narrationText) {
+      window.speechSynthesis.cancel();
+      utteranceRef.current = null;
+      return;
+    }
+
+    // Cancel any existing utterance
+    window.speechSynthesis.cancel();
+
+    // Create new utterance
+    const utterance = new SpeechSynthesisUtterance(narrationText);
+    utterance.rate = 0.95;
+    utterance.pitch = 1;
+    utterance.volume = 1;
+
+    // Try to find a calm professional voice
+    const voices = window.speechSynthesis.getVoices();
+    const preferredVoice = voices.find(v =>
+      v.name.toLowerCase().includes('google') ||
+      v.name.toLowerCase().includes('professional') ||
+      v.name.toLowerCase().includes('female') ||
+      v.name.toLowerCase().includes('samantha')
+    ) || voices.find(v => v.lang.startsWith('en'));
+
+    if (preferredVoice) {
+      utterance.voice = preferredVoice;
+    }
+
+    utteranceRef.current = utterance;
+
+    if (isPlaying) {
+      window.speechSynthesis.speak(utterance);
+    }
+
+    return () => {
+      window.speechSynthesis.cancel();
+    };
+  }, [narrationText]);
+
+  // Handle play/pause for narration
+  useEffect(() => {
+    if (!utteranceRef.current || !narrationText) return;
+
+    if (isPlaying) {
+      // Resume or start speaking
+      if (window.speechSynthesis.paused) {
+        window.speechSynthesis.resume();
+      } else if (!window.speechSynthesis.speaking) {
+        window.speechSynthesis.speak(utteranceRef.current);
+      }
+    } else {
+      window.speechSynthesis.pause();
+    }
+  }, [isPlaying, narrationText]);
+
   // Handle errors and fallback messaging
-  const errorSubtext = hasError 
-    ? (isApiLoading ? "Connecting Library..." : "Visualization rendering...") 
+  const errorSubtext = hasError
+    ? (isApiLoading ? "Connecting Library..." : "Visualization rendering...")
     : "Protocol Live";
 
   // Audio Logic
@@ -127,7 +186,7 @@ export default function StretchAnimationPlayer({
       audioRef.current = new Audio(currentTrack.url);
       audioRef.current.loop = true;
       audioRef.current.volume = 0.3;
-      
+
       // Handle source errors gracefully
       audioRef.current.onerror = () => {
         console.warn("Audio source error, attempting to continue without audio");
@@ -192,7 +251,7 @@ export default function StretchAnimationPlayer({
 
   // Check manifest to immediately fallback if known missing
   const isAvailable = manifest.includes(requestedSlug);
-  
+
   const currentSlug = (!isAvailable || useFallback) && !gifUrl ? "default_stretch" : requestedSlug;
   const framesBasePath = `/animations/${currentSlug}`;
 
@@ -225,7 +284,7 @@ export default function StretchAnimationPlayer({
         // Run animation for multi-image API responses (cross-fading slowly)
         interval = setInterval(() => {
           setFrame(prev => (prev % imageUrls.length) + 1);
-        }, 3000); 
+        }, 3000);
       } else if (!gifUrl) {
         // Run local frame sequence
         interval = setInterval(() => {
@@ -246,23 +305,23 @@ export default function StretchAnimationPlayer({
 
   const getFramingStyles = () => {
     if (!hideControls) return { initial: { scale: 1, y: 0 }, animate: { scale: 1, y: 0 }, className: "p-4 md:p-12" };
-    
+
     let effectiveMode = framingMode;
     let modifiers = { scaleMod: 1, yMod: 1 };
-    
+
     if (mediaStats) {
       const isLowRes = mediaStats.w < 600 || mediaStats.h < 600;
       const ratio = mediaStats.w / mediaStats.h;
       const isPortrait = ratio < 0.8;
       const isLandscape = ratio > 1.2;
       const isSquareLike = ratio >= 0.8 && ratio <= 1.2;
-      
+
       if (isLowRes) {
         effectiveMode = "fit"; // Downgrade
       } else if (isPortrait && effectiveMode === "cinematic") {
         effectiveMode = "focus"; // Portrait extreme zooms clip too much
       }
-      
+
       // Close-up / subtle motion reduction for squares
       if (isSquareLike && effectiveMode === "cinematic") {
          modifiers = { scaleMod: 0.5, yMod: 0.5 }; // reduce intensity
@@ -270,26 +329,26 @@ export default function StretchAnimationPlayer({
          modifiers = { scaleMod: 1.2, yMod: 1.5 }; // stronger sweep for landscapes
       }
     }
-    
+
     switch (effectiveMode) {
       case "fit":
-        return { 
-          initial: { scale: 0.95, y: 0 }, 
-          animate: { scale: 0.95, y: 0 }, 
+        return {
+          initial: { scale: 0.95, y: 0 },
+          animate: { scale: 0.95, y: 0 },
           className: "p-8 md:p-12" // Padding avoids edge overlaps
         };
       case "focus":
-        return { 
-          initial: { scale: 1.02, y: 0 }, 
-          animate: { scale: 1.02, y: 0 }, 
+        return {
+          initial: { scale: 1.02, y: 0 },
+          animate: { scale: 1.02, y: 0 },
           className: "p-2"
         };
       case "cinematic":
       default:
-        return { 
-          initial: { scale: 1.0 + (0.05 * modifiers.scaleMod), y: 5 * modifiers.yMod }, 
-          animate: { scale: 1.0 + (0.15 * modifiers.scaleMod), y: -5 * modifiers.yMod }, 
-          className: "p-0" 
+        return {
+          initial: { scale: 1.0 + (0.05 * modifiers.scaleMod), y: 5 * modifiers.yMod },
+          animate: { scale: 1.0 + (0.15 * modifiers.scaleMod), y: -5 * modifiers.yMod },
+          className: "p-0"
         };
     }
   };
@@ -297,7 +356,7 @@ export default function StretchAnimationPlayer({
   const framing = getFramingStyles();
 
   return (
-    <div 
+    <div
       onClick={handleInteraction}
       className={`relative w-full z-0 ${hideControls ? 'h-full bg-transparent' : 'aspect-[4/5] md:aspect-video bg-white rounded-[3rem] border border-charcoal/5 shadow-[inset_0_2px_10px_rgba(0,0,0,0.03)]'} overflow-hidden group transition-all duration-700 ${isPreparing ? 'bg-cream/20' : ''}`}
       style={{ isolation: 'isolate' }}
@@ -306,7 +365,7 @@ export default function StretchAnimationPlayer({
       {!hideControls && (
         <div className="absolute top-8 left-8 right-8 flex items-center justify-between z-40 opacity-0 group-hover:opacity-100 transition-opacity duration-500">
           <div className="relative">
-            <div 
+            <div
               onClick={(e) => {
                 e.stopPropagation();
                 handleInteraction();
@@ -325,7 +384,7 @@ export default function StretchAnimationPlayer({
 
             <AnimatePresence>
               {isMusicMenuOpen && (
-                <motion.div 
+                <motion.div
                   initial={{ opacity: 0, y: 10, scale: 0.95 }}
                   animate={{ opacity: 1, y: 0, scale: 1 }}
                   exit={{ opacity: 0, y: 10, scale: 0.95 }}
@@ -333,7 +392,7 @@ export default function StretchAnimationPlayer({
                   className="absolute top-full mt-3 left-0 w-56 bg-white/95 backdrop-blur-2xl rounded-3xl border border-charcoal/5 shadow-2xl p-2 z-50 overflow-hidden"
                 >
                   {TRACKS.map((track, i) => (
-                    <button 
+                    <button
                       key={track.id}
                       onClick={(e) => {
                         e.stopPropagation();
@@ -351,41 +410,41 @@ export default function StretchAnimationPlayer({
               )}
             </AnimatePresence>
           </div>
-          
+
           <div className="flex items-center gap-6 bg-white/40 backdrop-blur-md px-6 py-3 rounded-full border border-white/20 text-charcoal/30">
-              <SkipBack 
-                size={18} 
-                onClick={(e) => { 
-                  e.stopPropagation(); 
+              <SkipBack
+                size={18}
+                onClick={(e) => {
+                  e.stopPropagation();
                   handleInteraction();
-                  setCurrentTrackIndex(prev => (prev - 1 + TRACKS.length) % TRACKS.length); 
+                  setCurrentTrackIndex(prev => (prev - 1 + TRACKS.length) % TRACKS.length);
                 }}
-                className="hover:text-[#ff00e5] cursor-pointer transition-colors" 
+                className="hover:text-[#ff00e5] cursor-pointer transition-colors"
               />
               <div onClick={toggleMusic}>
                 <PlayIcon size={18} className="fill-current text-[#ff00e5] hover:scale-110 cursor-pointer transition-transform" />
               </div>
-              <SkipForward 
-                size={18} 
-                onClick={(e) => { 
-                  e.stopPropagation(); 
+              <SkipForward
+                size={18}
+                onClick={(e) => {
+                  e.stopPropagation();
                   handleInteraction();
-                  setCurrentTrackIndex(prev => (prev + 1) % TRACKS.length); 
+                  setCurrentTrackIndex(prev => (prev + 1) % TRACKS.length);
                 }}
-                className="hover:text-[#ff00e5] cursor-pointer transition-colors" 
+                className="hover:text-[#ff00e5] cursor-pointer transition-colors"
               />
           </div>
         </div>
       )}
 
       {/* Background Grid Pattern */}
-      <div className="absolute inset-0 opacity-[0.03] pointer-events-none" 
-           style={{ backgroundImage: 'radial-gradient(#000 1px, transparent 1px)', backgroundSize: '20px 20px' }} 
+      <div className="absolute inset-0 opacity-[0.03] pointer-events-none"
+           style={{ backgroundImage: 'radial-gradient(#000 1px, transparent 1px)', backgroundSize: '20px 20px' }}
       />
 
       <AnimatePresence mode="wait">
         {(isApiLoading || !isLoaded) && !hasError && (
-          <motion.div 
+          <motion.div
             key="loader"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -400,7 +459,7 @@ export default function StretchAnimationPlayer({
         )}
 
         {hasError && (
-          <motion.div 
+          <motion.div
             key="error"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -408,8 +467,8 @@ export default function StretchAnimationPlayer({
           >
             {/* Dynamic Placeholder Animation when images missing */}
             <div className="relative w-48 h-48 flex items-center justify-center">
-                <motion.div 
-                    animate={{ 
+                <motion.div
+                    animate={{
                         scale: [1, 1.2, 1],
                         opacity: [0.1, 0.3, 0.1]
                     }}
@@ -437,7 +496,7 @@ export default function StretchAnimationPlayer({
         )}
       </AnimatePresence>
 
-      <motion.div 
+      <motion.div
         initial={framing.initial}
         animate={framing.animate}
         transition={{ duration: 8, ease: "easeInOut", repeat: Infinity, repeatType: "reverse" }}
@@ -479,7 +538,7 @@ export default function StretchAnimationPlayer({
                 }}
                 onError={(e) => {
                   console.warn("GIF specifically failed to load, falling back...", dynamicGifUrl);
-                  setGifUrl(null); 
+                  setGifUrl(null);
                   setImageUrls([]);
                 }}
                 className={`w-full h-full object-contain mix-blend-multiply transition-opacity duration-300 ${isLoaded ? 'opacity-100' : 'opacity-0'}`}

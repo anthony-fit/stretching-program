@@ -53,26 +53,6 @@ export async function generateRoutineScript(
 }
 
 // ---------------------------------------------------------------------------
-// Voiceover (TTS)
-// ---------------------------------------------------------------------------
-
-export async function generateVoiceover(text: string) {
-  const response = await fetch(`${API_BASE}/generate-voiceover`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ text }),
-  });
-
-  if (!response.ok) {
-    const err = await response.json().catch(() => ({}));
-    throw new Error(err.details || "Voiceover generation failed");
-  }
-
-  const data = await response.json();
-  return data.audioUrl as string;
-}
-
-// ---------------------------------------------------------------------------
 // AI Video Generation
 // ---------------------------------------------------------------------------
 

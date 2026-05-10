@@ -118,27 +118,6 @@ export async function generateRoutineScript(
   }
 }
 
-export async function generateVoiceover(text: string) {
-  const client = getAI();
-
-  const prompt = `Convert the following text to natural, professional fitness coach speech. Return ONLY the text to be spoken, with no additional commentary:
-${text}`;
-
-  const response = await client.chat.completions.create({
-    model: "llama-3.3-70b-versatile",
-    messages: [
-      {
-        role: "user",
-        content: prompt,
-      },
-    ],
-    temperature: 0.7,
-  });
-
-  const spokenText = response.choices[0]?.message?.content || text;
-
-  return { text: spokenText, original: text };
-}
 
 export async function generateAIVideo(prompt: string) {
   console.log("[AI] Groq video generation not available - using placeholder");

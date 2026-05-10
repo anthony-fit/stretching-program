@@ -60,7 +60,7 @@ import StretchAnimationPlayer from "../components/StretchAnimationPlayer";
 import { Exercise, EXERCISE_DATABASE } from "../data/exercises";
 import {
   generateRoutineScript,
-  generateVoiceover,
+
   generateAIVideo,
   generateSEOMetadata,
   generateSocialCaptions,
@@ -488,7 +488,7 @@ export default function VideoStudioPage() {
 
   // AI Automation State
   const [aiScript, setAiScript] = useState<
-    { exerciseName: string; script: string; audioUrl?: string }[]
+    { exerciseName: string; script: string;  }[]
   >([]);
   const [isGeneratingAi, setIsGeneratingAi] = useState(false);
   const [restored, setRestored] = useState(false);
@@ -531,7 +531,6 @@ export default function VideoStudioPage() {
 
   // Audio System Refs
   const activeBlueprintIdRef = useRef<string | null>(null);
-  const audioRef = useRef<HTMLAudioElement | null>(null);
   const soundtrackAudioRef = useRef<HTMLAudioElement | null>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
   const audioDestinationRef = useRef<MediaStreamAudioDestinationNode | null>(null);
@@ -627,21 +626,6 @@ export default function VideoStudioPage() {
           }).catch(err => console.error("[AudioEngine] Failed to resume Context:", err));
         }
 
-        // Setup Narration
-        if (audioRef.current && !sourceNodeRef.current) {
-          try {
-            sourceNodeRef.current =
-              ctx.createMediaElementSource(audioRef.current);
-            sourceNodeRef.current.connect(ctx.destination);
-            if (audioDestinationRef.current) {
-              sourceNodeRef.current.connect(audioDestinationRef.current);
-            }
-            console.debug("[AudioEngine] Narration source connected to destination and speakers.");
-          } catch (e) {
-            console.warn("[AudioEngine] Failed to connect narration source:", e);
-          }
-        }
-
         // Setup Soundtrack
         if (soundtrackAudioRef.current && !soundtrackSourceNodeRef.current) {
           try {
@@ -670,10 +654,6 @@ export default function VideoStudioPage() {
   }, [isSoundtrackEnabled, soundtrackVolume]);
 
   const stopAudio = useCallback(() => {
-    if (audioRef.current) {
-      audioRef.current.pause();
-      audioRef.current.currentTime = 0;
-    }
     lastNarrationUrlRef.current = null;
     setIsAudioBuffering(false);
   }, []);
@@ -687,189 +667,6 @@ export default function VideoStudioPage() {
     };
   }, []);
 
-  const preloadNarration = useCallback(
-    (url: string): Promise<HTMLAudioElement> => {
-      // If already preloading this URL, return the same promise to avoid duplicate loads
-      if (pendingPreloads.current.has(url)) {
-        return pendingPreloads.current.get(url)!;
-      }
-
-      const promise = new Promise<HTMLAudioElement>((resolve, reject) => {
-        const audio = new Audio();
-        audio.crossOrigin = "anonymous";
-        audio.preload = "auto";
-
-        let isSettled = false;
-
-        const cleanup = () => {
-          audio.removeEventListener("canplaythrough", onCanPlay);
-          audio.removeEventListener("canplay", onCanPlay);
-          audio.removeEventListener("error", onError);
-          clearTimeout(loadTimeout);
-        };
-
-        const onCanPlay = () => {
-          if (isSettled) return;
-          isSettled = true;
-          cleanup();
-          pendingPreloads.current.delete(url);
-          console.debug(
-            "[AudioEngine] Preloaded successfully:",
-            url.substring(0, 50) + "...",
-          );
-          resolve(audio);
-        };
-
-        const onError = (e: any) => {
-          if (isSettled) return;
-          isSettled = true;
-          cleanup();
-          pendingPreloads.current.delete(url);
-          console.warn(
-            "[AudioEngine] Preload failed:",
-            url.substring(0, 50) + "...",
-          );
-          reject(e);
-        };
-
-        const loadTimeout = setTimeout(() => {
-          if (isSettled) return;
-          isSettled = true;
-          cleanup();
-          pendingPreloads.current.delete(url);
-          console.warn(
-            "[AudioEngine] Preload stalled (internal timeout) for:",
-            url.substring(0, 50),
-          );
-          reject(new Error("Audio preload internal timeout"));
-        }, 25000); // 25s local timeout for the preload object itself
-
-        audio.addEventListener("canplaythrough", onCanPlay);
-        audio.addEventListener("canplay", onCanPlay);
-        audio.addEventListener("error", onError);
-
-        audio.src = url;
-        audio.load();
-      });
-
-      pendingPreloads.current.set(url, promise);
-      return promise;
-    },
-    [],
-  );
-
-  const playAudio = useCallback(
-    async (url: string, retryCount = 0, initialTime = 0) => {
-      if (!audioRef.current) return;
-
-      lastNarrationUrlRef.current = url;
-
-      // Stop any existing playback first
-      audioRef.current.pause();
-      setIsAudioBuffering(true);
-
-      const ctx = setupAudioContext();
-
-      try {
-        // Memory management: prevent huge maps (strict production pruning)
-        if (audioPreloadMap.current.size > 15) {
-          const entries = Array.from(audioPreloadMap.current.entries());
-          // Keep only current and maybe 2 previous/next
-          const toRemove = entries.slice(0, entries.length - 3);
-          toRemove.forEach(([k, v]) => {
-            v.src = ""; // Force object release
-            v.load();
-            audioPreloadMap.current.delete(k);
-          });
-        }
-
-        // Add timeout fallback protection - increased for AI voice resilience
-        const preloadPromise = preloadNarration(url);
-        let timeoutHandle: any;
-        const timeoutPromise = new Promise((_, reject) => {
-          timeoutHandle = setTimeout(() => {
-            reject(new Error("Audio preload timeout"));
-          }, 30000); // Massive 30s timeout for stability
-        });
-
-        await Promise.race([preloadPromise, timeoutPromise]);
-        clearTimeout(timeoutHandle);
-
-        // Check if this is still the narration we want to play (cancellation check)
-        if (lastNarrationUrlRef.current !== url) {
-          console.debug(
-            "[AudioEngine] playAudio cancelled for newer request:",
-            url.substring(0, 30),
-          );
-          return;
-        }
-
-        if (!audioRef.current) return;
-        console.debug(
-          "[AudioEngine] playAudio ready:",
-          url.substring(0, 50) + "...",
-        );
-
-        if (audioRef.current.src !== url) {
-          audioRef.current.src = url;
-        }
-        audioRef.current.currentTime = initialTime;
-
-        const triggerPlay = async () => {
-          if (!audioRef.current) return;
-          try {
-            await audioRef.current.play();
-            console.debug("[AudioEngine] Narration playing successfully");
-            setIsAudioBuffering(false);
-          } catch (err: any) {
-            console.warn("[AudioEngine] Narration play blocked/failed:", err);
-
-            if (
-              retryCount < 1 &&
-              (err.name === "NotAllowedError" ||
-                err.name === "NotSupportedError" ||
-                err.name === "AbortError")
-            ) {
-              console.debug("[AudioEngine] Retrying play in 100ms...");
-              setTimeout(() => playAudio(url, retryCount + 1, initialTime), 100);
-              return;
-            }
-
-            if (ctx?.state === "suspended") {
-              try {
-                await ctx.resume();
-                await audioRef.current?.play();
-                setIsAudioBuffering(false);
-              } catch (resumeErr) {
-                setIsAudioBuffering(false);
-              }
-            } else {
-              setIsAudioBuffering(false);
-            }
-          }
-        };
-
-        if (ctx && ctx.state === "suspended") {
-          try {
-            await ctx.resume();
-          } catch (resumeErr) {
-            console.warn("[AudioEngine] ctx.resume() failed, proceeding to play anyway:", resumeErr);
-          }
-          await triggerPlay();
-        } else {
-          await triggerPlay();
-        }
-      } catch (err) {
-        console.error(
-          "[AudioEngine] playAudio failed during orchestration:",
-          err,
-        );
-        setIsAudioBuffering(false);
-        // On failure, we still want the timeline to continue eventually
-      }
-    },
-    [setupAudioContext, preloadNarration],
-  );
 
   // Handle Soundtrack Playback and Ducking
   useEffect(() => {
@@ -902,45 +699,6 @@ export default function VideoStudioPage() {
     }
   }, [soundtrackPreset, isSoundtrackEnabled, isPaused, setupAudioContext]);
 
-  // Ducking effect
-  useEffect(() => {
-    const narration = audioRef.current;
-    if (!narration) return;
-
-    const handlePlay = () => {
-      const g = soundtrackGainNodeRef.current;
-      const ctx = audioContextRef.current;
-      if (!g || !ctx) return;
-
-      const now = ctx.currentTime;
-      // Fade out music when narration starts
-      try {
-        g.gain.setTargetAtTime(isSoundtrackEnabled ? soundtrackVolume * 0.25 : 0, now, 0.15);
-      } catch (e) {}
-    };
-
-    const handleEndPause = () => {
-      const g = soundtrackGainNodeRef.current;
-      const ctx = audioContextRef.current;
-      if (!g || !ctx) return;
-
-      const now = ctx.currentTime;
-      // Fade back music when narration ends
-      try {
-        g.gain.setTargetAtTime(isSoundtrackEnabled ? soundtrackVolume : 0, now, 0.4);
-      } catch (e) {}
-    };
-
-    narration.addEventListener('play', handlePlay);
-    narration.addEventListener('pause', handleEndPause);
-    narration.addEventListener('ended', handleEndPause);
-
-    return () => {
-      narration.removeEventListener('play', handlePlay);
-      narration.removeEventListener('pause', handleEndPause);
-      narration.removeEventListener('ended', handleEndPause);
-    };
-  }, [soundtrackVolume, isSoundtrackEnabled]);
 
   // Volume slider update
   useEffect(() => {
@@ -1032,84 +790,7 @@ export default function VideoStudioPage() {
   ]);
 
 
-  // Look-ahead preloading for upcoming scenes
-  useEffect(() => {
-    if (aiScript.length === 0) return;
 
-    const currentUrl = aiScript[activeItemIndex]?.audioUrl;
-    const nextUrl = aiScript[activeItemIndex + 1]?.audioUrl;
-
-    if (currentUrl) preloadNarration(currentUrl).catch(() => {});
-    if (nextUrl) preloadNarration(nextUrl).catch(() => {});
-  }, [activeItemIndex, aiScript, preloadNarration]);
-
-  // Auto-play narration synchronization
-  useEffect(() => {
-    if (isPaused || storyboard.length === 0 || !restored) {
-      lastPlayedNarrationRef.current = -1;
-      return;
-    }
-
-    const sceneHasAudio = !!aiScript[activeItemIndex]?.audioUrl;
-    const url = aiScript[activeItemIndex]?.audioUrl;
-
-    if (sceneHasAudio && url) {
-      if (lastPlayedNarrationRef.current !== activeItemIndex) {
-        console.debug("[AudioEngine] Syncing narration for scene:", activeItemIndex, "at", currentTime);
-        playAudio(url, 0, currentTime);
-        lastPlayedNarrationRef.current = activeItemIndex;
-      }
-    }
-  }, [activeItemIndex, isPaused, aiScript, playAudio, currentTime, restored, playbackState]);
-
-  useEffect(() => {
-    if (!audioRef.current) return;
-
-    // Audio Follower Migration
-    if (playbackState === 'playing') {
-      if (audioRef.current.paused && aiScript[activeItemIndex]?.audioUrl) {
-        // playAudio is governed elsewhere, but we track
-      }
-
-      // Drift correction logic
-      if (!audioRef.current.paused) {
-        const drift = currentTime - audioRef.current.currentTime;
-        const driftMs = Math.abs(drift * 1000);
-
-        RuntimeObserver.trackAudioDrift(driftMs);
-
-        // Micro-correction threshold: 100ms
-        if (driftMs > 100 && driftMs < 500) {
-           // Gentle playback rate adjustment
-           audioRef.current.playbackRate = drift > 0 ? 1.05 : 0.95;
-        } else if (driftMs >= 500) {
-           // Hard snap if it drifted too much
-           audioRef.current.currentTime = currentTime;
-           audioRef.current.playbackRate = 1.0;
-        } else {
-           // Restabilize
-           if (audioRef.current.playbackRate !== 1.0) {
-             audioRef.current.playbackRate = 1.0;
-           }
-        }
-      }
-    } else if (playbackState === 'paused' || playbackState === 'seeking') {
-      if (!audioRef.current.paused) {
-         audioRef.current.pause();
-      }
-
-      // Keep playhead snapped to orchestrator while seeking/paused
-      if (Math.abs(audioRef.current.currentTime - currentTime) > 0.05) {
-        audioRef.current.currentTime = currentTime;
-      }
-
-      if (playbackState === 'seeking') {
-        const startSeek = performance.now();
-        // Track seek reconciliation immediately
-        RuntimeObserver.trackSeekReconciliation(performance.now() - startSeek);
-      }
-    }
-  }, [currentTime, playbackState, activeItemIndex, aiScript]);
 
   // Timeline horizontal scroll support
   useEffect(() => {
@@ -1843,7 +1524,7 @@ secondaryMuscles: ex.secondaryMuscles || [],
 
       // Map blueprint scenes to Storyboard items
       const generatedItems: StoryboardItem[] = [];
-      const generatedAiScript: { exerciseName: string; script: string; audioUrl?: string }[] = [];
+      const generatedAiScript: { exerciseName: string; script: string;  }[] = [];
 
       blueprint.scenes.forEach((scene: any) => {
         let exMatch = exercises.find(ex => ex.id === scene.exerciseId);
@@ -2017,23 +1698,6 @@ secondaryMuscles: ex.secondaryMuscles || [],
     }, 1500);
   }, [exercises, generateId, handleGenerateAiScript]);
 
-  const handleGenerateVoiceover = useCallback(async (index: number) => {
-    if (!aiScript[index]) return;
-
-    // Check if audio already exists
-    if (aiScript[index].audioUrl) {
-      playAudio(aiScript[index].audioUrl!);
-      return;
-    }
-
-    const audioUrl = await generateVoiceover(aiScript[index].script);
-    if (audioUrl) {
-      const updatedScript = [...aiScript];
-      updatedScript[index].audioUrl = audioUrl;
-      setAiScript(updatedScript);
-      playAudio(audioUrl);
-    }
-  }, [aiScript, playAudio]);
 
   const showNotification = useCallback((msg: string) => {
     setGenerationMessage(msg);
@@ -2349,14 +2013,7 @@ secondaryMuscles: ex.secondaryMuscles || [],
           img.src = item.thumbnail;
         });
       }); // This closes `storyboard.map(...)`
-      const loadAudioPromises = aiScript.map((script, index) => {
-        if (!script.audioUrl) return Promise.resolve();
-        return preloadNarration(script.audioUrl).catch(() => {
-          console.warn(`[Export Status] Failed to preload audio for scene ${index}`);
-        });
-      });
-
-      await Promise.all([...loadPromises, ...loadAudioPromises]);
+      await Promise.all(loadPromises);
     } catch (error) {
       console.warn("[Export Status] Preloading encountered an error:", error);
     }
@@ -3269,18 +2926,7 @@ secondaryMuscles: ex.secondaryMuscles || [],
                         >
                           <Video className="w-3 h-3" />
                         </button>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleGenerateVoiceover(
-                              aiScript.indexOf(sceneScript!),
-                            );
-                          }}
-                          className={`p-1.5 rounded-lg transition-all ${sceneScript?.audioUrl ? "bg-gold text-charcoal" : "bg-white/5 text-white/40 hover:text-gold"}`}
-                          title="TTS Voiceover"
-                        >
-                          <Mic2 className="w-3 h-3" />
-                        </button>
+
                       </div>
                     </div>
 
@@ -3303,7 +2949,7 @@ secondaryMuscles: ex.secondaryMuscles || [],
         )}
       </>
     );
-  }, [isGeneratingAi, storyboard, aiScript, activeItemIndex, isGeneratingVideo, handleGenerateCustomVideo, handleGenerateVoiceover, workoutSummary]);
+  }, [isGeneratingAi, storyboard, aiScript, activeItemIndex, isGeneratingVideo, handleGenerateCustomVideo, workoutSummary]);
 
   const completeWorkout = useCallback(() => {
     if (storyboard.length === 0) return;
@@ -4245,7 +3891,6 @@ secondaryMuscles: ex.secondaryMuscles || [],
 
       {/* Hidden Export Canvas */}
       <canvas ref={exportCanvasRef} className="hidden" />
-      <audio ref={audioRef} className="hidden" crossOrigin="anonymous" />
       <audio ref={soundtrackAudioRef} className="hidden" crossOrigin="anonymous" loop />
 
       <AnimatePresence>
@@ -5555,6 +5200,7 @@ secondaryMuscles: ex.secondaryMuscles || [],
                         isPlaying={!isPaused}
                         hideControls={true}
                         framingMode={framingMode}
+                        narrationText={aiScript[activeItemIndex]?.script}
                       />
                     </motion.div>
                   </AnimatePresence>
