@@ -95,7 +95,10 @@ export async function generateRoutineScript(
       .map((ex, i) => `${i + 1}. ${ex.name} (${ex.duration}s)`)
       .join("\n")}
 
-    Format the output as a JSON array.
+    Return ONLY raw JSON.
+    Do not use markdown.
+    Return an array of:
+    { "exerciseName": "string", "script": "string" }
   `;
 
   const response = await client.chat.completions.create({
@@ -109,13 +112,26 @@ export async function generateRoutineScript(
     temperature: 0.7,
   });
 
-  const text = response.choices[0]?.message?.content || "[]";
+  const rawText = response.choices[0]?.message?.content || "[]";
 
-  try {
-    return JSON.parse(text);
-  } catch {
-    return [];
-  }
+  const cleanedText = rawText
+    .replace(/```json/g, "")
+    .replace(/```/g, "")
+    .trim();
+
+    try {
+      const parsed = JSON.parse(cleanedText);
+
+      const normalized = Array.isArray(parsed)
+        ? parsed
+        : [parsed];
+
+      return normalized;
+    } catch (e) {
+      console.error("[GROQ JSON PARSE FAILED]");
+      console.error(e);
+      return [];
+    }
 }
 
 

@@ -1383,7 +1383,7 @@ secondaryMuscles: ex.secondaryMuscles || [],
     if (!activeItem) return null;
 
     const sceneScript = aiScript.find(
-      (s) => s.exerciseName === activeItem.name,
+      (s) => s.exerciseName?.trim().toLowerCase() === activeItem.name?.trim().toLowerCase(),
     );
     if (!sceneScript?.script) return null;
 
@@ -2304,7 +2304,7 @@ secondaryMuscles: ex.secondaryMuscles || [],
         // Render Subtitle
         if (state.subtitlesEnabled && state.aiScript) {
           const sceneScript = state.aiScript.find(
-            (s) => s.exerciseName === itemToDraw.name,
+            (s) => s.exerciseName?.trim().toLowerCase() === itemToDraw.name?.trim().toLowerCase(),
           );
           if (sceneScript?.script) {
             const scriptText = sceneScript.script;
@@ -2883,7 +2883,7 @@ secondaryMuscles: ex.secondaryMuscles || [],
             <div className="space-y-3">
               {storyboard.map((item, idx) => {
                 const sceneScript = aiScript.find(
-                  (s) => s.exerciseName === item.name,
+                  (s) => s.exerciseName?.trim().toLowerCase() === item.name?.trim().toLowerCase(),
                 );
                 return (
                   <div

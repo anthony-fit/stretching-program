@@ -49,7 +49,9 @@ export async function generateRoutineScript(
     throw new Error(err.details || "Script generation failed");
   }
 
-  return response.json();
+  const data = await response.json();
+
+  return data;
 }
 
 // ---------------------------------------------------------------------------
