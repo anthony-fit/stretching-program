@@ -1,7 +1,7 @@
 /**
  * src/api/client.ts
  * Secure frontend API client — ALL AI calls go through this layer ONLY.
- * No direct Gemini SDK usage. No browser-side AI execution.
+ * No direct AI SDK usage. No browser-side AI execution.
  */
 
 const API_BASE = "/api";

@@ -5,10 +5,10 @@ Successfully integrated a lightweight SEO and Social automation layer atop the e
 
 ## Files Changed
 
-1. `src/services/aiService.ts`
-   - Added asynchronous helpers `generateSEOMetadata` and `generateSocialCaptions`.
-   - Used `gemini-3-flash-preview` to maintain ultra-fast and virtually free text-generation limits.
-   - Forced pure JSON structuring.
+1. `src/server/services/groq.ts`
+     - Added asynchronous helpers `generateSEOMetadata` and `generateSocialCaptions`.
+     - Used lightweight structured AI generation for fast metadata creation.
+     - Forced pure JSON structuring.
 
 2. `src/pages/VideoStudioPage.tsx`
    - Added an integrated "Growth" tab to parallel the "Library" and "AI Script" panels.
@@ -18,7 +18,7 @@ Successfully integrated a lightweight SEO and Social automation layer atop the e
    - Added clean Clipboard API integration for ultra-fast copying of all produced copy elements (Description, Hashtags, 3x Social Captions) tailored independently for TikTok/Insta/YT.
 
 ## Cost Impact
-Using standard flash inference on highly bounded prompts containing an array of basic strings (e.g. exercise names) utilizes practically zero computational bandwidth (<300 tokens overall execution block roundtrip). 
+Using standard flash inference on highly bounded prompts containing an array of basic strings (e.g. exercise names) utilizes practically zero computational bandwidth (<300 tokens overall execution block roundtrip).
 
 ## Future Extension Opportunities
 - **Social Connectors**: Integrating directly via OAuth to TikTok / IG endpoints to post directly via the platform APIs from the Client (OAuth scope).
