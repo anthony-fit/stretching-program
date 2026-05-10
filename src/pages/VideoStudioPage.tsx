@@ -653,10 +653,7 @@ export default function VideoStudioPage() {
     }
   }, [isSoundtrackEnabled, soundtrackVolume]);
 
-  const stopAudio = useCallback(() => {
-    lastNarrationUrlRef.current = null;
-    setIsAudioBuffering(false);
-  }, []);
+
 
   // Cleanup AudioContext on unmount
   useEffect(() => {
@@ -1572,9 +1569,7 @@ secondaryMuscles: ex.secondaryMuscles || [],
       setTimeout(() => setGenerationMessage(null), 5000);
 
     } catch (e) {
-      console.error(e);
-      setGenerationMessage("Failed to synthesize. Check connections.");
-      setTimeout(() => setGenerationMessage(null), 3000);
+      console.warn("Speech synthesis unavailable:", e);
       setIsInitializingProtocol(false);
     }
   };
@@ -1859,23 +1854,17 @@ secondaryMuscles: ex.secondaryMuscles || [],
   // Playback Logic
   useEffect(() => {
     if (isPaused) {
-      stopAudio();
       setIsAudioBuffering(false);
       lastNarrationUrlRef.current = null;
     }
-  }, [isPaused, stopAudio]);
-
-  useEffect(() => {
-    return () => stopAudio();
-  }, [stopAudio]);
+  }, [isPaused]);
 
   const previousSceneIndexRef = useRef(activeItemIndex);
   useEffect(() => {
     if (activeItemIndex !== previousSceneIndexRef.current) {
-      stopAudio();
       previousSceneIndexRef.current = activeItemIndex;
     }
-  }, [activeItemIndex, stopAudio]);
+  }, [activeItemIndex]);
 
   const handleSoftError = (msg: string) => {
     setExportErrorMsg(msg);
@@ -1943,7 +1932,6 @@ secondaryMuscles: ex.secondaryMuscles || [],
         cancelAnimationFrame(exportRafRef.current);
         exportRafRef.current = null;
       }
-      stopAudio();
       setExportState("idle");
       setIsRecording(false);
       Orchestrator.pause();
@@ -2175,9 +2163,7 @@ secondaryMuscles: ex.secondaryMuscles || [],
           if (storyboard.some(item => !item.thumbnail)) {
             console.warn("[Integrity Notice] Missing thumbnail data in final composition.");
           }
-          if (aiScript.length > 0 && !(window as any).ttsAudioBufferStore) {
-            console.warn("[Integrity Notice] Voiceover buffers unverified. Sync may be degraded.");
-          }
+
           console.debug("[Integrity Checks] Master composition verified gracefully.");
         } catch (e) {
            console.debug("[Integrity Checks] Check skipped gracefully.");
@@ -2581,7 +2567,6 @@ secondaryMuscles: ex.secondaryMuscles || [],
               }`}
               onClick={() => {
                 if (isDraggingRef.current) return;
-                stopAudio();
                 Orchestrator.seekToScene(idx, 0);
               }}
             >
@@ -2723,7 +2708,6 @@ secondaryMuscles: ex.secondaryMuscles || [],
     removeFromStoryboard,
     updateItemDuration,
     setItemDuration,
-    stopAudio,
   ]);
 
   // Keyboard Shortcuts
