@@ -224,8 +224,26 @@ export async function generateCompositionBlueprint(prefs: {
 
   enrichedPrefs = applyReciprocalCalmness(presenceState, enrichedPrefs);
 
+  // Sanitize payload to prevent cyclic object errors during JSON.stringify
+  const getCircularReplacer = () => {
+    const seen = new WeakSet();
+    return (key: string, value: any) => {
+      if (typeof value === "object" && value !== null) {
+        if (seen.has(value)) {
+          return;
+        }
+        seen.add(value);
+      }
+      if (typeof value === "function") return undefined;
+      if (typeof window !== "undefined" && (value instanceof Element || value instanceof Window)) return undefined;
+      return value;
+    };
+  };
+
+  const sanitizedPrefs = JSON.parse(JSON.stringify(enrichedPrefs, getCircularReplacer()));
+
   const candidates = await generateCompositionBlueprintViaLLM(
-    enrichedPrefs,
+    sanitizedPrefs,
     dbSummary,
   );
 

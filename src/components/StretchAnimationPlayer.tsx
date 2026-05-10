@@ -26,7 +26,8 @@ export default function StretchAnimationPlayer({
   isPlaying = true,
   isPreparing = false,
   hideControls = false,
-  framingMode = "cinematic"
+  framingMode = "cinematic",
+  narrationText
 }: StretchAnimationPlayerProps) {
   const [frame, setFrame] = useState(1);
   const [isLoaded, setIsLoaded] = useState(false);

@@ -326,6 +326,12 @@ export default function VideoStudioPage() {
     return Math.random().toString(36).substring(2, 11);
   }, []);
 
+  const isClient = typeof window !== "undefined";
+  const safeInnerWidth = isClient ? window.innerWidth : 1440;
+  const isMobileViewport = safeInnerWidth <= 768;
+
+  console.log("VideoStudioPage mounted");
+
   const [exercises, setExercises] = useState<Exercise[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [storyboard, setStoryboard] = useState<StoryboardItem[]>([]);
@@ -1944,8 +1950,8 @@ secondaryMuscles: ex.secondaryMuscles || [],
       (/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
         navigator.userAgent,
       ) ||
-        window.innerWidth <= 768);
-    const totalDuration = storyboard.reduce(
+        isMobileViewport);
+      const totalDuration = storyboard.reduce(
       (acc, curr) => acc + curr.duration,
       0,
     );
@@ -3823,7 +3829,11 @@ secondaryMuscles: ex.secondaryMuscles || [],
   );
 
   return (
-    <motion.div
+    <>
+      <div className="fixed top-2 left-2 z-[9999] bg-red-500 text-white text-xs px-2 py-1">
+        STUDIO LOADED
+      </div>
+      <motion.div
       initial={V.fadeUp.initial}
       animate={V.fadeUp.animate}
       exit={V.fadeUp.exit}
@@ -5158,9 +5168,9 @@ secondaryMuscles: ex.secondaryMuscles || [],
                 <MasterReviewPlayer
                   src={renderBlobUrlRef.current}
                   metadata={{
-                    duration: storyboard.reduce((acc, item) => acc + item.duration, 0),
-                    fps: window.innerWidth < 768 ? 24 : 30,
-                    resolution: aspectRatio === "9:16" ? "1080x1920" : aspectRatio === "16:9" ? "1920x1080" : "1080x1080",
+                      duration: storyboard.reduce((acc, item) => acc + item.duration, 0),
+                      fps: isMobileViewport ? 24 : 30,
+                      resolution: aspectRatio === "9:16" ? "1080x1920" : aspectRatio === "16:9" ? "1920x1080" : "1080x1080",
                     codec: "VP8/WebM"
                   }}
                 />
@@ -5676,5 +5686,6 @@ secondaryMuscles: ex.secondaryMuscles || [],
         }}
       />
     </motion.div>
+    </>
   );
 }
