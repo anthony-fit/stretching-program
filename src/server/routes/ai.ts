@@ -15,6 +15,7 @@ router.post("/generate-composition", async (req, res) => {
     const { prefs, exerciseDatabaseSummary } = req.body;
 
     const result = await generateCompositionBlueprintViaLLM(
+      process.env.GROQ_API_KEY || "",
       prefs,
       exerciseDatabaseSummary,
     );
@@ -35,6 +36,7 @@ router.post("/generate-script", async (req, res) => {
     const { exercises, goal, creatorMode, context } = req.body;
 
     const result = await generateRoutineScript(
+      process.env.GROQ_API_KEY || "",
       exercises,
       goal,
       creatorMode,
@@ -74,6 +76,7 @@ router.post("/generate-seo", async (req, res) => {
     const { exercises, goal, context } = req.body;
 
     const result = await generateSEOMetadata(
+      process.env.GROQ_API_KEY || "",
       exercises,
       goal,
       context,
@@ -95,6 +98,7 @@ router.post("/generate-social", async (req, res) => {
     const { exercises, goal, creatorMode, context } = req.body;
 
     const result = await generateSocialCaptions(
+      process.env.GROQ_API_KEY || "",
       exercises,
       goal,
       creatorMode,

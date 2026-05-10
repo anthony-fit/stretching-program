@@ -1,44 +1,30 @@
 import Groq from "groq-sdk";
 
-let groq: Groq | null = null;
-
-function assertGroqKey() {
-  const apiKey = process.env.GROQ_API_KEY;
-
+export function getAI(apiKey: string) {
   if (!apiKey || apiKey.trim().length === 0) {
     throw new Error(
       "[AI] GROQ_API_KEY environment variable is required",
     );
   }
 
-  return apiKey;
+  return new Groq({
+    apiKey,
+  });
 }
 
-export function getAI() {
-  if (!groq) {
-    const apiKey = assertGroqKey();
-
-    groq = new Groq({
-      apiKey,
-    });
-
-    console.log("[AI] Groq singleton initialized");
+export function validateGroqEnvironment(apiKey: string) {
+  if (!apiKey || apiKey.trim().length === 0) {
+    throw new Error("[AI] GROQ_API_KEY environment variable is required");
   }
-
-  return groq;
-}
-
-export function validateGroqEnvironment() {
-  assertGroqKey();
-
   console.log("[AI] GROQ_API_KEY validation passed");
 }
 
 export async function generateCompositionBlueprintViaLLM(
+  apiKey: string,
   prefs: any,
   exerciseDatabaseSummary: string,
 ) {
-  const client = getAI();
+  const client = getAI(apiKey);
 
   const prompt = `
     You are an expert fitness video director and master composition planner.
@@ -80,12 +66,13 @@ export async function generateCompositionBlueprintViaLLM(
 }
 
 export async function generateRoutineScript(
+  apiKey: string,
   exercises: { name: string; duration: number }[],
   goal: string,
   creatorMode?: string,
   context?: any,
 ) {
-  const client = getAI();
+  const client = getAI(apiKey);
 
   const prompt = `
     Create a professional fitness voiceover script for a ${context?.intensity || "standard"} intensity ${goal} workout routine.
@@ -146,11 +133,12 @@ export async function generateAIVideo(prompt: string) {
 }
 
 export async function generateSEOMetadata(
+  apiKey: string,
   exercises: { name: string; duration: number }[],
   goal: string,
   context?: any,
 ) {
-  const client = getAI();
+  const client = getAI(apiKey);
 
   const prompt = `
     Generate SEO metadata for a fitness workout video.
@@ -182,12 +170,13 @@ export async function generateSEOMetadata(
 }
 
 export async function generateSocialCaptions(
+  apiKey: string,
   exercises: { name: string; duration: number }[],
   goal: string,
   creatorMode?: string,
   context?: any,
 ) {
-  const client = getAI();
+  const client = getAI(apiKey);
 
   const prompt = `
     Generate social media captions for a short-form fitness workout video.
