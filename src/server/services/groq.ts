@@ -152,6 +152,66 @@ export async function generateRoutineScript(
   }
 }
 
+export async function classifyWorkoutIntentViaLLM(
+  apiKey: string,
+  promptText: string,
+  baseURL?: string
+) {
+  validateGroqEnvironment(apiKey);
+
+  const groqOptions: any = { apiKey };
+  if (baseURL) groqOptions.baseURL = baseURL;
+
+  const groq = new Groq(groqOptions);
+
+  const prompt = `
+    You are an expert fitness AI assistant. 
+    Analyze the following user prompt and classify their workout intent into a structured JSON payload.
+    
+    User prompt: "${promptText}"
+
+    Output strict JSON matching exactly this structure:
+    {
+      "durationMinutes": number (default 30 if unstated),
+      "focus": string (e.g. "Full Body", "Lower Back", "Neck", "Hips", "Core", "Legs"),
+      "level": "Beginner" | "Intermediate" | "Expert" (default Beginner),
+      "intensity": "Low" | "Medium" | "High" (default Low if stretching/recovery, else Medium),
+      "painPoints": string[] (e.g. ["Lower Back Pain", "Neck Pain,Desk Posture", "Tight Hips"]),
+      "equipment": string[] (e.g. ["None", "Mat", "Dumbbell"]),
+      "coachingStyle": "Encouraging" | "Direct" | "Intense",
+      "goal": string (e.g. "Mobility", "Strength", "Recovery")
+    }
+
+    Return ONLY raw JSON. No markdown formatting.
+  `;
+
+  const chatCompletion = await groq.chat.completions.create({
+    messages: [
+      {
+        role: "system",
+        content: "You are an AI that converts natural language workout requests into strict structured JSON. Return exactly JSON, no markdown.",
+      },
+      {
+        role: "user",
+        content: prompt,
+      },
+    ],
+    model: "llama-3.3-70b-versatile",
+    temperature: 0.2,
+    max_tokens: 1000,
+    response_format: { type: "json_object" },
+  });
+
+  const text = chatCompletion.choices[0]?.message?.content || "{}";
+
+  try {
+    return JSON.parse(text);
+  } catch (e) {
+    console.error("LLM INTENT PARSE ERROR:", e);
+    return null;
+  }
+}
+
 export async function generateAIVideo(prompt: string) {
   console.log("[AI] Video generation not available - using placeholder");
 
