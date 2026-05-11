@@ -1,6 +1,10 @@
 export interface EditorialDiff {
   removedScenes: string[];
-  trimmedScenes: { sceneId: string; originalDuration: number; newDuration: number }[];
+  trimmedScenes: {
+    sceneId: string;
+    originalDuration: number;
+    newDuration: number;
+  }[];
   soundtrackChanged: boolean;
   subtitleDensityModified: boolean;
 }
@@ -33,16 +37,18 @@ export function saveCompositionMemory(memory: CompositionRecord[]) {
 
 export function recordGeneratedBlueprint(blueprint: any): string {
   const memory = getCompositionMemory();
-  const blueprintId = blueprint.metadata?.generationSeed || Math.random().toString(36).substring(2, 10);
-  
+  const blueprintId =
+    blueprint.metadata?.generationSeed ||
+    Math.random().toString(36).substring(2, 10);
+
   const record: CompositionRecord = {
     blueprintId,
     metadata: blueprint.metadata,
     status: "generated",
     score: scoreComposition(blueprint),
-    timestamp: Date.now()
+    timestamp: Date.now(),
   };
-  
+
   memory.push(record);
   saveCompositionMemory(memory);
   return blueprintId;
@@ -51,7 +57,7 @@ export function recordGeneratedBlueprint(blueprint: any): string {
 export function recordCompositionExport(blueprintId: string) {
   if (!blueprintId) return;
   const memory = getCompositionMemory();
-  const index = memory.findIndex(m => m.blueprintId === blueprintId);
+  const index = memory.findIndex((m) => m.blueprintId === blueprintId);
   if (index >= 0) {
     memory[index].status = "exported";
     saveCompositionMemory(memory);
@@ -61,11 +67,11 @@ export function recordCompositionExport(blueprintId: string) {
 export function recordEditorialDiff(blueprintId: string, diff: EditorialDiff) {
   if (!blueprintId) return;
   const memory = getCompositionMemory();
-  const index = memory.findIndex(m => m.blueprintId === blueprintId);
+  const index = memory.findIndex((m) => m.blueprintId === blueprintId);
   if (index >= 0) {
     memory[index].diffs = {
       ...(memory[index].diffs || {}),
-      ...diff
+      ...diff,
     };
     saveCompositionMemory(memory);
   }
@@ -73,10 +79,11 @@ export function recordEditorialDiff(blueprintId: string, diff: EditorialDiff) {
 
 export function scoreComposition(blueprint: any): number {
   let score = 100;
-  
+
   // Pacing integrity
-  if (blueprint.pacingArc === "steady" || blueprint.pacingArc === "build-up") score += 5;
-  
+  if (blueprint.pacingArc === "steady" || blueprint.pacingArc === "build-up")
+    score += 5;
+
   // Subtitle coherence (density constraints)
   if (blueprint.scenes) {
     blueprint.scenes.forEach((scene: any) => {
@@ -84,7 +91,7 @@ export function scoreComposition(blueprint: any): number {
         const words = scene.script.split(/\\s+/).length;
         const wps = words / (scene.duration || 1);
         if (wps > 3.0) score -= 10; // Penalize high cognitive load
-        if (wps < 0.5) score -= 5;  // Penalize awkward silence structurally 
+        if (wps < 0.5) score -= 5; // Penalize awkward silence structurally
       }
     });
   }
@@ -97,42 +104,50 @@ export function scoreComposition(blueprint: any): number {
 
 export function getLearnedTasteProfile() {
   const memory = getCompositionMemory();
-  const exported = memory.filter(m => m.status === "exported");
-  
+  const exported = memory.filter((m) => m.status === "exported");
+
   if (exported.length === 0) {
-     return {
-       preferredPacing: "editorial_steady",
-       preferredSubtitles: "minimal_low_density",
-       preferredSoundtrack: "ambient_restrained",
-       preferredHookProfile: "immediate_authority",
-       transitionDensity: "low", 
-       historicalFatigue: "fresh"
-     };
+    return {
+      preferredPacing: "editorial_steady",
+      preferredSubtitles: "minimal_low_density",
+      preferredSoundtrack: "ambient_restrained",
+      preferredHookProfile: "immediate_authority",
+      transitionDensity: "low",
+      historicalFatigue: "fresh",
+    };
   }
 
   // Analyze diffs
   let soundtrackChanges = 0;
   let densityReductions = 0;
 
-  exported.forEach(m => {
+  exported.forEach((m) => {
     if (m.diffs?.soundtrackChanged) soundtrackChanges++;
     if (m.diffs?.subtitleDensityModified) densityReductions++;
   });
 
-  const prefersCustomSoundtrack = soundtrackChanges > (exported.length / 3);
+  const prefersCustomSoundtrack = soundtrackChanges > exported.length / 3;
   const prefersLowerCognitiveLoad = densityReductions > 0;
 
   // Longitudinal Recovery Intelligence
-  const recentExports = exported.filter(m => (Date.now() - m.timestamp) < 48 * 60 * 60 * 1000).length;
+  const recentExports = exported.filter(
+    (m) => Date.now() - m.timestamp < 48 * 60 * 60 * 1000,
+  ).length;
   let historicalFatigue = "fresh";
   if (recentExports >= 3) historicalFatigue = "accumulated";
 
   return {
-    preferredPacing: prefersLowerCognitiveLoad ? "slow_build_editorial" : "editorial_steady",
-    preferredSubtitles: prefersLowerCognitiveLoad ? "ultra_minimal" : "minimal_low_density",
-    preferredSoundtrack: prefersCustomSoundtrack ? "user_overridden_adaptive" : "ambient_restrained",
+    preferredPacing: prefersLowerCognitiveLoad
+      ? "slow_build_editorial"
+      : "editorial_steady",
+    preferredSubtitles: prefersLowerCognitiveLoad
+      ? "ultra_minimal"
+      : "minimal_low_density",
+    preferredSoundtrack: prefersCustomSoundtrack
+      ? "user_overridden_adaptive"
+      : "ambient_restrained",
     preferredHookProfile: "immediate_authority",
     transitionDensity: "low",
-    historicalFatigue
+    historicalFatigue,
   };
 }

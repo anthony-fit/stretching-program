@@ -1,7 +1,11 @@
 import { Exercise, EXERCISE_DATABASE } from "../data/exercises";
 import { generateCompositionBlueprintViaLLM } from "../api/client";
 import { enforceGovernance } from "./compositionGovernance";
-import { getLearnedTasteProfile, scoreComposition, getCompositionMemory } from "./compositionMemory";
+import {
+  getLearnedTasteProfile,
+  scoreComposition,
+  getCompositionMemory,
+} from "./compositionMemory";
 import { simulateViewerExperience } from "./perceptionModel";
 import { getCurrentContinuityState } from "./continuityEngine";
 import {
@@ -125,20 +129,17 @@ export async function generateCompositionBlueprint(prefs: {
     .map((m: any) => m.metadata?.symbolicMotifs?.primary)
     .filter(Boolean);
   const targetArchetype = determineNarrativeArchetype(
-      prefs.intensity === "high" ? "intervals" : "steady", // rough heuristic to guide LLM
-      continuityState.recoveryDebt,
-    );
-  const symbolicState = generateSymbolicMotifs(
-    targetArchetype,
-    pastMotifs,
+    prefs.intensity === "high" ? "intervals" : "steady", // rough heuristic to guide LLM
+    continuityState.recoveryDebt,
   );
+  const symbolicState = generateSymbolicMotifs(targetArchetype, pastMotifs);
 
   // Collective Pattern Intelligence
   const collectiveTruths = observeCollectiveEmotionalTruths();
   const collectiveTendencies = applyCollectiveIntelligence(
-      continuityState.identityProfile,
-      collectiveTruths,
-    );
+    continuityState.identityProfile,
+    collectiveTruths,
+  );
 
   // Environmental Presence
   const mockSignals: InteractionSignals = {
@@ -235,12 +236,18 @@ export async function generateCompositionBlueprint(prefs: {
         seen.add(value);
       }
       if (typeof value === "function") return undefined;
-      if (typeof window !== "undefined" && (value instanceof Element || value instanceof Window)) return undefined;
+      if (
+        typeof window !== "undefined" &&
+        (value instanceof Element || value instanceof Window)
+      )
+        return undefined;
       return value;
     };
   };
 
-  const sanitizedPrefs = JSON.parse(JSON.stringify(enrichedPrefs, getCircularReplacer()));
+  const sanitizedPrefs = JSON.parse(
+    JSON.stringify(enrichedPrefs, getCircularReplacer()),
+  );
 
   const candidates = await generateCompositionBlueprintViaLLM(
     sanitizedPrefs,
@@ -262,6 +269,18 @@ export async function generateCompositionBlueprint(prefs: {
     }[] = [];
 
     candidates.forEach((candidate: any) => {
+      if (
+        !candidate ||
+        !candidate.scenes ||
+        !Array.isArray(candidate.scenes) ||
+        candidate.scenes.length === 0
+      ) {
+        console.warn(
+          "[PIPELINE] Invalid Groq blueprint structure - Rejecting candidate",
+        );
+        return;
+      }
+
       // 1. Governance
       const governed = enforceGovernance(
         candidate,

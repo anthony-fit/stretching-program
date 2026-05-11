@@ -1,5 +1,14 @@
-export type PlatformContext = "tiktok" | "youtube" | "instagram" | "web_app" | "silent_autoplay";
-export type ViewingEnvironment = "morning_activation" | "nighttime_recovery" | "gym_display" | "personal_coaching";
+export type PlatformContext =
+  | "tiktok"
+  | "youtube"
+  | "instagram"
+  | "web_app"
+  | "silent_autoplay";
+export type ViewingEnvironment =
+  | "morning_activation"
+  | "nighttime_recovery"
+  | "gym_display"
+  | "personal_coaching";
 
 export interface AudienceContext {
   platform: PlatformContext;
@@ -8,17 +17,35 @@ export interface AudienceContext {
 }
 
 export interface DistributionConstraints {
-  recommendedSubtitleMode: "accessibility_forward" | "editorial_cinematic" | "ultra_minimal" | "nighttime_low_pressure";
-  hookStyle: "energetic_activation" | "calming_reassurance" | "authority_framing" | "movement_curiosity" | "reflective_opening";
+  recommendedSubtitleMode:
+    | "accessibility_forward"
+    | "editorial_cinematic"
+    | "ultra_minimal"
+    | "nighttime_low_pressure";
+  hookStyle:
+    | "energetic_activation"
+    | "calming_reassurance"
+    | "authority_framing"
+    | "movement_curiosity"
+    | "reflective_opening";
   maxInitialSceneDuration: number;
   allowedPacingArcs: string[];
 }
 
-export function evaluateDistributionContext(context: AudienceContext): DistributionConstraints {
-  let recommendedSubtitleMode: DistributionConstraints["recommendedSubtitleMode"] = "editorial_cinematic";
+export function evaluateDistributionContext(
+  context: AudienceContext,
+): DistributionConstraints {
+  let recommendedSubtitleMode: DistributionConstraints["recommendedSubtitleMode"] =
+    "editorial_cinematic";
   let hookStyle: DistributionConstraints["hookStyle"] = "movement_curiosity";
   let maxInitialSceneDuration = 12;
-  let allowedPacingArcs = ["steady", "build-up", "waves", "intervals", "cool-down"];
+  let allowedPacingArcs = [
+    "steady",
+    "build-up",
+    "waves",
+    "intervals",
+    "cool-down",
+  ];
 
   if (context.platform === "tiktok" || context.platform === "instagram") {
     maxInitialSceneDuration = 6;
@@ -33,7 +60,10 @@ export function evaluateDistributionContext(context: AudienceContext): Distribut
     recommendedSubtitleMode = "accessibility_forward";
   }
 
-  if (context.soundAvailability === "muted" || context.platform === "silent_autoplay") {
+  if (
+    context.soundAvailability === "muted" ||
+    context.platform === "silent_autoplay"
+  ) {
     recommendedSubtitleMode = "accessibility_forward";
   }
 
@@ -50,6 +80,6 @@ export function evaluateDistributionContext(context: AudienceContext): Distribut
     recommendedSubtitleMode,
     hookStyle,
     maxInitialSceneDuration,
-    allowedPacingArcs
+    allowedPacingArcs,
   };
 }

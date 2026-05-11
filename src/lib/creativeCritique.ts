@@ -49,19 +49,22 @@ export function getCritiqueMemory(): EditorialReflection[] {
 function saveCritiqueMemory(memory: EditorialReflection[]) {
   try {
     localStorage.setItem(CRITIQUE_MEMORY_KEY, JSON.stringify(memory));
-  } catch(e) {}
+  } catch (e) {}
 }
 
 export function performEditorialReflection(
   selectedBlueprint: CompositionBlueprint,
   selectedPerception: PerceptionScore,
-  rejectedCandidates: { blueprint: CompositionBlueprint, perception: PerceptionScore }[]
+  rejectedCandidates: {
+    blueprint: CompositionBlueprint;
+    perception: PerceptionScore;
+  }[],
 ): EditorialReflection {
   const memory = getCompositionMemory();
   const pastReflections = getCritiqueMemory();
 
   // 1. Counterfactual Analysis
-  const counterfactuals: CandidateCritique[] = rejectedCandidates.map(c => {
+  const counterfactuals: CandidateCritique[] = rejectedCandidates.map((c) => {
     let weakness = "Unknown";
     let strength = "Unknown";
 
@@ -73,26 +76,30 @@ export function performEditorialReflection(
       weakness = "Insufficient structural score / pacing variance";
     }
 
-    if (c.perception.emotionalArc > 80) strength = "Strong emotional arc continuity";
-    else if (c.perception.silenceIntelligence > 80) strength = "Excellent breathing room & silence spacing";
+    if (c.perception.emotionalArc > 80)
+      strength = "Strong emotional arc continuity";
+    else if (c.perception.silenceIntelligence > 80)
+      strength = "Excellent breathing room & silence spacing";
     else strength = "Adequate structural integrity";
 
     return {
       pacingArc: c.blueprint.metadata?.pacingArc || "steady",
       perceptionScore: c.perception.totalScore,
       primaryWeakness: weakness,
-      primaryStrength: strength
+      primaryStrength: strength,
     };
   });
 
   // 2. Creative Drift Detection (compare against past history)
   let driftWarning: string | null = null;
   let originalityScore = 100;
-  
+
   if (memory.length >= 3) {
-    const lastPacing = memory.slice(-3).map(m => m.metadata?.pacingArc);
-    const allSamePacing = lastPacing.every(p => p === selectedBlueprint.metadata.pacingArc);
-    
+    const lastPacing = memory.slice(-3).map((m) => m.metadata?.pacingArc);
+    const allSamePacing = lastPacing.every(
+      (p) => p === selectedBlueprint.metadata.pacingArc,
+    );
+
     if (allSamePacing) {
       driftWarning = `Creative Drift Detected: System has over-relied on '${selectedBlueprint.metadata.pacingArc}' pacing. Risk of compositional stagnation. Introduce controlled novelty.`;
       originalityScore -= 30;
@@ -101,30 +108,42 @@ export function performEditorialReflection(
 
   // 3. Critique Dimensions
   const critique: CritiqueDimensions = {
-    pacingVariance: selectedPerception.emotionalArc, 
+    pacingVariance: selectedPerception.emotionalArc,
     silenceIntentionality: selectedPerception.silenceIntelligence,
     subtitleRestraint: selectedPerception.cognitiveFatigue,
     originality: originalityScore,
-    recoveryIntelligence: (selectedBlueprint.metadata.pacingArc === "cool-down" || selectedBlueprint.metadata.pacingArc === "steady") ? 90 : 60
+    recoveryIntelligence:
+      selectedBlueprint.metadata.pacingArc === "cool-down" ||
+      selectedBlueprint.metadata.pacingArc === "steady"
+        ? 90
+        : 60,
   };
 
   // 4. Composition Confidence Modeling
   const confidence: CompositionConfidenceProfile = {
-    pacingConfidence: Math.min(100, (critique.pacingVariance + critique.recoveryIntelligence) / 2),
+    pacingConfidence: Math.min(
+      100,
+      (critique.pacingVariance + critique.recoveryIntelligence) / 2,
+    ),
     emotionalConfidence: selectedPerception.emotionalArc,
     audienceFitConfidence: selectedPerception.totalScore, // Represents distribution fit mapping
     originalityConfidence: originalityScore,
-    overallConfidence: Math.round((selectedPerception.totalScore + originalityScore) / 2)
+    overallConfidence: Math.round(
+      (selectedPerception.totalScore + originalityScore) / 2,
+    ),
   };
 
   // 5. Evolutionary Guidance
   let guidance = "Maintain current trajectory.";
   if (confidence.overallConfidence < 70) {
-     guidance = "Confidence low. Prioritize structural stability and familiar identity profiles. Resist novel experiments.";
+    guidance =
+      "Confidence low. Prioritize structural stability and familiar identity profiles. Resist novel experiments.";
   } else if (confidence.originalityConfidence < 60) {
-     guidance = "High confidence but originality is drifting towards repetition. Authorizes controlled pacing experiments in next session.";
+    guidance =
+      "High confidence but originality is drifting towards repetition. Authorizes controlled pacing experiments in next session.";
   } else if (confidence.overallConfidence > 85) {
-     guidance = "Confident mastery achieved. Subtle innovations in subtitle cadence or alternative transitions are approved.";
+    guidance =
+      "Confident mastery achieved. Subtle innovations in subtitle cadence or alternative transitions are approved.";
   }
 
   const reflection: EditorialReflection = {
@@ -134,7 +153,7 @@ export function performEditorialReflection(
     counterfactuals,
     driftWarning,
     evolutionaryGuidance: guidance,
-    timestamp: Date.now()
+    timestamp: Date.now(),
   };
 
   pastReflections.push(reflection);

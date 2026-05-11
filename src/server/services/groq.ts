@@ -10,7 +10,7 @@ export async function generateCompositionBlueprintViaLLM(
   apiKey: string,
   prefs: any,
   exerciseDatabaseSummary: string,
-  baseURL?: string
+  baseURL?: string,
 ) {
   validateGroqEnvironment(apiKey);
 
@@ -82,7 +82,26 @@ export async function generateCompositionBlueprintViaLLM(
 
   try {
     const parsed = JSON.parse(text);
-    return Array.isArray(parsed) ? parsed : [parsed];
+
+    // Safely extract the wrapped array
+    if (parsed.blueprints && Array.isArray(parsed.blueprints)) {
+      console.log("[PIPELINE] Wrapped blueprint extracted");
+      return parsed.blueprints;
+    } else if (Array.isArray(parsed)) {
+      console.log("[PIPELINE] Groq blueprint parsed successfully");
+      return parsed;
+    } else if (
+      parsed.data &&
+      parsed.data.blueprints &&
+      Array.isArray(parsed.data.blueprints)
+    ) {
+      console.log("[PIPELINE] Wrapped blueprint extracted (data)");
+      return parsed.data.blueprints;
+    } else {
+      throw new Error(
+        "[PIPELINE] Invalid Groq blueprint structure - Missing 'blueprints' array",
+      );
+    }
   } catch (e) {
     console.error("LLM PARSE ERROR:", e);
     return [];
@@ -95,10 +114,10 @@ export async function generateRoutineScript(
   goal: string,
   creatorMode?: string,
   context?: any,
-  baseURL?: string
+  baseURL?: string,
 ) {
   validateGroqEnvironment(apiKey);
-  
+
   const groqOptions: any = { apiKey };
   if (baseURL) groqOptions.baseURL = baseURL;
 
@@ -140,9 +159,7 @@ export async function generateRoutineScript(
   try {
     const parsed = JSON.parse(text);
 
-    const normalized = Array.isArray(parsed)
-      ? parsed
-      : [parsed];
+    const normalized = Array.isArray(parsed) ? parsed : [parsed];
 
     return normalized;
   } catch (e) {
@@ -155,7 +172,7 @@ export async function generateRoutineScript(
 export async function classifyWorkoutIntentViaLLM(
   apiKey: string,
   promptText: string,
-  baseURL?: string
+  baseURL?: string,
 ) {
   validateGroqEnvironment(apiKey);
 
@@ -189,7 +206,8 @@ export async function classifyWorkoutIntentViaLLM(
     messages: [
       {
         role: "system",
-        content: "You are an AI that converts natural language workout requests into strict structured JSON. Return exactly JSON, no markdown.",
+        content:
+          "You are an AI that converts natural language workout requests into strict structured JSON. Return exactly JSON, no markdown.",
       },
       {
         role: "user",
@@ -227,10 +245,10 @@ export async function generateSEOMetadata(
   exercises: { name: string; duration: number }[],
   goal: string,
   context?: any,
-  baseURL?: string
+  baseURL?: string,
 ) {
   validateGroqEnvironment(apiKey);
-  
+
   const groqOptions: any = { apiKey };
   if (baseURL) groqOptions.baseURL = baseURL;
 
@@ -276,10 +294,10 @@ export async function generateSocialCaptions(
   goal: string,
   creatorMode?: string,
   context?: any,
-  baseURL?: string
+  baseURL?: string,
 ) {
   validateGroqEnvironment(apiKey);
-  
+
   const groqOptions: any = { apiKey };
   if (baseURL) groqOptions.baseURL = baseURL;
 
@@ -319,4 +337,3 @@ export async function generateSocialCaptions(
     return {};
   }
 }
-

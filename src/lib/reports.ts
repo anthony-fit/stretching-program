@@ -16,17 +16,19 @@ export interface ProgressSummary {
   dateRange: { start: string; end: string };
   totalWorkouts: number;
   averageFormQuality: number;
-  mobilityProgressionTrend: 'Improving' | 'Stagnant' | 'Declining';
+  mobilityProgressionTrend: "Improving" | "Stagnant" | "Declining";
   latestAssessment?: OverallAssessment;
 }
 
-export const generateProgressReport = (reports: WorkoutReport[]): ProgressSummary => {
+export const generateProgressReport = (
+  reports: WorkoutReport[],
+): ProgressSummary => {
   // Logic to aggregate workout reports into a summary
   return {
-    userId: 'anonymous',
-    dateRange: { start: '', end: '' },
+    userId: "anonymous",
+    dateRange: { start: "", end: "" },
     totalWorkouts: reports.length,
     averageFormQuality: 0,
-    mobilityProgressionTrend: 'Stagnant'
+    mobilityProgressionTrend: "Stagnant",
   };
 };

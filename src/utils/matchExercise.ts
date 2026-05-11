@@ -22,6 +22,47 @@ export function normalize(str: string) {
   return base;
 }
 
+export function resolveVerifiedExercise(
+  aiSuggestedName: string,
+  exercises: any[],
+  fallbackCategory?: string,
+  fallbackFocus?: string
+): any | null {
+  if (!exercises || exercises.length === 0) return null;
+
+  const dbArrayToMap = exercises.reduce((acc, ex) => {
+    acc[ex.name] = ex.id;
+    return acc;
+  }, {} as Record<string, string>);
+
+  const bestMatchName = findBestMatch(aiSuggestedName, dbArrayToMap);
+  let match = bestMatchName ? exercises.find(ex => ex.name === bestMatchName) : null;
+
+  if (match) {
+    console.log(`[VERIFIED] Matched exercise: "${aiSuggestedName}" -> "${match.name}"`);
+    return match;
+  }
+
+  // If no match found, use deterministic fallback
+  const fallbackPool = exercises.filter(ex => {
+    let isValid = true;
+    if (fallbackCategory) {
+      isValid = isValid && ex.category?.toLowerCase() === fallbackCategory.toLowerCase();
+    }
+    if (fallbackFocus) {
+      isValid = isValid && ex.focus?.some((f: string) => f.toLowerCase().includes(fallbackFocus.toLowerCase()));
+    }
+    return isValid;
+  });
+
+  const poolToUse = fallbackPool.length > 0 ? fallbackPool : exercises;
+  
+  // Pick one randomly or first one
+  const deterministicReplacement = poolToUse[Math.floor(Math.random() * poolToUse.length)];
+
+  console.log(`[REPLACED] Unsupported AI exercise swapped: "${aiSuggestedName}" -> "${deterministicReplacement.name}"`);
+  return deterministicReplacement;
+}
 export function findBestMatch(name: string, db: Record<string, string>): string | null {
   // First, check explicit exact full-string aliases before we heavily normalize
   const rawInput = name.toLowerCase().replace(/[^a-z0-9 ]/g, " ").replace(/\s+/g, " ").trim();

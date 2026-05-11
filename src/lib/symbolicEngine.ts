@@ -1,4 +1,4 @@
-export type NarrativeArchetype = 
+export type NarrativeArchetype =
   | "restoration"
   | "awakening"
   | "reconstruction"
@@ -33,7 +33,7 @@ export interface MeaningResolutionScore {
 
 export function determineNarrativeArchetype(
   pacingArc: string,
-  recoveryDebt: number
+  recoveryDebt: number,
 ): NarrativeArchetype {
   if (recoveryDebt > 70) {
     if (pacingArc === "cool-down") return "decompression";
@@ -54,8 +54,12 @@ export function determineNarrativeArchetype(
 
 export function generateSymbolicMotifs(
   archetype: NarrativeArchetype,
-  pastMotifs: SymbolicMotif[]
-): { primary: SymbolicMotif; secondary: SymbolicMotif; driftWarning: string | null } {
+  pastMotifs: SymbolicMotif[],
+): {
+  primary: SymbolicMotif;
+  secondary: SymbolicMotif;
+  driftWarning: string | null;
+} {
   // Candidate motifs per archetype
   const motifMap: Record<NarrativeArchetype, SymbolicMotif[]> = {
     restoration: ["grounded_stillness", "restorative_decay", "breath_space"],
@@ -63,23 +67,32 @@ export function generateSymbolicMotifs(
     reconstruction: ["structural_resilience", "grounded_stillness"],
     resilience: ["controlled_tension_release", "structural_resilience"],
     decompression: ["restorative_decay", "silent_integration"],
-    controlled_activation: ["progressive_expansion", "controlled_tension_release"],
+    controlled_activation: [
+      "progressive_expansion",
+      "controlled_tension_release",
+    ],
     emotional_release: ["breath_space", "controlled_tension_release"],
-    grounded_discipline: ["grounded_stillness", "structural_resilience"]
+    grounded_discipline: ["grounded_stillness", "structural_resilience"],
   };
 
-  const available = motifMap[archetype] || ["grounded_stillness", "breath_space"];
-  
+  const available = motifMap[archetype] || [
+    "grounded_stillness",
+    "breath_space",
+  ];
+
   // Emotional Symbol Drift Detection
   let driftWarning = null;
   const recentPrimary = pastMotifs.slice(-3);
-  
+
   let primary = available[0];
   let secondary = available[1] || "silent_integration";
 
-  if (recentPrimary.every(m => m === primary) && recentPrimary.length === 3) {
+  if (recentPrimary.every((m) => m === primary) && recentPrimary.length === 3) {
     driftWarning = `Symbolic Drift Detected: Overuse of '${primary}' motif. Shifting emotional language to prevent mythological stagnation.`;
-    primary = available[available.length - 1] !== primary ? available[available.length - 1] : "silent_integration";
+    primary =
+      available[available.length - 1] !== primary
+        ? available[available.length - 1]
+        : "silent_integration";
   }
 
   return { primary, secondary, driftWarning };
@@ -87,7 +100,7 @@ export function generateSymbolicMotifs(
 
 export function evaluateMeaningResolution(
   blueprint: any,
-  archetype: NarrativeArchetype
+  archetype: NarrativeArchetype,
 ): MeaningResolutionScore {
   let score = 100;
   const risks: string[] = [];
@@ -98,8 +111,13 @@ export function evaluateMeaningResolution(
 
   // Check if resolution feels earned
   if (finalScene) {
-    if (finalScene.energyLevel === "peak" || finalScene.energyLevel === "high") {
-      risks.push("Composition ends on high energy. Emotional atmosphere fails to settle.");
+    if (
+      finalScene.energyLevel === "peak" ||
+      finalScene.energyLevel === "high"
+    ) {
+      risks.push(
+        "Composition ends on high energy. Emotional atmosphere fails to settle.",
+      );
       score -= 30;
     }
   }
@@ -117,7 +135,9 @@ export function evaluateMeaningResolution(
 
   if (archetype === "resilience" || archetype === "controlled_activation") {
     if (blueprint.scenes?.length < 3) {
-      risks.push("Insufficient narrative duration to earn resilience arc closure.");
+      risks.push(
+        "Insufficient narrative duration to earn resilience arc closure.",
+      );
       score -= 15;
     }
   }
@@ -125,6 +145,6 @@ export function evaluateMeaningResolution(
   return {
     resolutionScore: Math.max(0, score),
     emotionalClosure: score >= 80,
-    resolutionRisks: risks
+    resolutionRisks: risks,
   };
 }

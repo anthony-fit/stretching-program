@@ -6,28 +6,49 @@ export const GOVERNANCE_RULES = {
   MAX_REPETITIONS_PER_WORKOUT: 2,
 };
 
-export function enforceGovernance(blueprint: any, targetDurationSeconds: number, distributionConstraints?: any) {
+export function enforceGovernance(
+  blueprint: any,
+  targetDurationSeconds: number,
+  distributionConstraints?: any,
+) {
   if (!blueprint || !blueprint.scenes) return blueprint;
 
   // 0. Environmental Initial Hook Scene Sizing
-  if (distributionConstraints && distributionConstraints.maxInitialSceneDuration && blueprint.scenes[0]) {
-     if (blueprint.scenes[0].duration > distributionConstraints.maxInitialSceneDuration) {
-        blueprint.scenes[0].duration = distributionConstraints.maxInitialSceneDuration;
-     }
+  if (
+    distributionConstraints &&
+    distributionConstraints.maxInitialSceneDuration &&
+    blueprint.scenes[0]
+  ) {
+    if (
+      blueprint.scenes[0].duration >
+      distributionConstraints.maxInitialSceneDuration
+    ) {
+      blueprint.scenes[0].duration =
+        distributionConstraints.maxInitialSceneDuration;
+    }
   }
 
   // 1. Duration Integrity - Force total duration to match target strictly
   let totalDuration = 0;
-  blueprint.scenes.forEach((s: any) => totalDuration += (s.duration || 10));
+  blueprint.scenes.forEach((s: any) => (totalDuration += s.duration || 10));
 
-  if (Math.abs(totalDuration - targetDurationSeconds) > 2 && targetDurationSeconds > 0) {
+  if (
+    Math.abs(totalDuration - targetDurationSeconds) > 2 &&
+    targetDurationSeconds > 0
+  ) {
     const ratio = targetDurationSeconds / totalDuration;
     let newTotal = 0;
     blueprint.scenes = blueprint.scenes.map((scene: any, index: number) => {
       if (index === blueprint.scenes.length - 1) {
-        scene.duration = Math.max(GOVERNANCE_RULES.MIN_SCENE_DURATION_SEC, targetDurationSeconds - newTotal);
+        scene.duration = Math.max(
+          GOVERNANCE_RULES.MIN_SCENE_DURATION_SEC,
+          targetDurationSeconds - newTotal,
+        );
       } else {
-        scene.duration = Math.max(GOVERNANCE_RULES.MIN_SCENE_DURATION_SEC, Math.round((scene.duration || 10) * ratio));
+        scene.duration = Math.max(
+          GOVERNANCE_RULES.MIN_SCENE_DURATION_SEC,
+          Math.round((scene.duration || 10) * ratio),
+        );
         newTotal += scene.duration;
       }
       return scene;
@@ -39,9 +60,15 @@ export function enforceGovernance(blueprint: any, targetDurationSeconds: number,
 
   blueprint.scenes = blueprint.scenes.map((scene: any, i: number) => {
     // Movement Variation Enforcement
-    exerciseCounts[scene.exerciseId] = (exerciseCounts[scene.exerciseId] || 0) + 1;
-    if (exerciseCounts[scene.exerciseId] > GOVERNANCE_RULES.MAX_REPETITIONS_PER_WORKOUT) {
-      console.warn(`[Governance] Exercise repetition limit reached for: ${scene.exerciseId}.`);
+    exerciseCounts[scene.exerciseId] =
+      (exerciseCounts[scene.exerciseId] || 0) + 1;
+    if (
+      exerciseCounts[scene.exerciseId] >
+      GOVERNANCE_RULES.MAX_REPETITIONS_PER_WORKOUT
+    ) {
+      console.warn(
+        `[Governance] Exercise repetition limit reached for: ${scene.exerciseId}.`,
+      );
       // In a full implementation, we'd query the DB for an alternative target muscle exercise here
     }
 
@@ -51,13 +78,17 @@ export function enforceGovernance(blueprint: any, targetDurationSeconds: number,
       const wps = words.length / scene.duration;
 
       if (wps > GOVERNANCE_RULES.MAX_SPOKEN_WORDS_PER_SEC) {
-        console.warn(`[Governance] Scene ${i} word density (${wps.toFixed(1)} wps) exceeds cognitive load boundaries. Trimming narration.`);
-        const allowedWords = Math.floor(scene.duration * GOVERNANCE_RULES.MAX_SPOKEN_WORDS_PER_SEC);
+        console.warn(
+          `[Governance] Scene ${i} word density (${wps.toFixed(1)} wps) exceeds cognitive load boundaries. Trimming narration.`,
+        );
+        const allowedWords = Math.floor(
+          scene.duration * GOVERNANCE_RULES.MAX_SPOKEN_WORDS_PER_SEC,
+        );
         scene.script = words.slice(0, allowedWords).join(" ");
       }
 
       if (wps < 0.5 && scene.duration > 15) {
-         // Too much silence for a long scene, maybe flag it.
+        // Too much silence for a long scene, maybe flag it.
       }
     }
 
@@ -78,7 +109,7 @@ export function enforceGovernance(blueprint: any, targetDurationSeconds: number,
     title: blueprint.title,
     hook: blueprint.hook,
     pacingArc: blueprint.pacingArc,
-    soundtrackProfile: blueprint.soundtrackProfile
+    soundtrackProfile: blueprint.soundtrackProfile,
   };
 
   return blueprint;

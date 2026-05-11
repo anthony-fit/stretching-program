@@ -13,6 +13,8 @@ import {
   Mic,
   Layout,
   Layers,
+  Clock,
+  Zap,
 } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { transitionClasses, V } from "../lib/runtime/motion";
@@ -57,12 +59,47 @@ const SUBTITLES = [
   "Exhale, reset, and let it go.",
 ];
 
+const STORAGE_KEY = "stretching-pro:recovery-memory";
+
+interface RecoveryMemory {
+  focus: string;
+  painPoints: string[];
+  durationMinutes: number;
+  goal: string;
+  timestamp: number;
+}
+
 function AICoachPrompt() {
   const [prompt, setPrompt] = useState("");
   const [isClassifying, setIsClassifying] = useState(false);
   const [loadingStep, setLoadingStep] = useState(0);
   const [exampleIndex, setExampleIndex] = useState(0);
+
+  // Adaptive memory state
+  const [memory, setMemory] = useState<RecoveryMemory | null>(null);
+
+  // New States for preview
+  const [parsedIntent, setParsedIntent] = useState<any>(null);
+  const [transitionMsgIndex, setTransitionMsgIndex] = useState(0);
+
   const navigate = useNavigate();
+
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        setMemory(parsed);
+        // Pre-fill the input prompt to bias the next generation
+        if (!prompt && parsed.focus) {
+          setPrompt(`Continue recovery for ${parsed.focus}`);
+        }
+      }
+    } catch (e) {
+      console.error("Failed to load recovery memory", e);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const loadingMessages = [
     "Analyzing posture restrictions...",
@@ -71,21 +108,35 @@ function AICoachPrompt() {
     "Hydrating cinematic studio...",
   ];
 
-  const examplePrompts = [
-    "Recover from tight hips after running",
-    "Morning mobility before desk work",
-    "15 minute neck pain reset",
-    "Post-leg-day recovery flow",
+  const transitionMessages = [
+    "Hydrating cinematic studio...",
+    "Preparing adaptive timeline...",
+    "Loading recovery engine...",
   ];
+
+  const examplePrompts = memory
+    ? [
+        `Continue Recovery for ${memory.focus}`,
+        `Deepen ${memory.focus} Mobility`,
+        "Posture Reset",
+        "Gentle Recovery",
+        "Recovery Reload",
+      ]
+    : [
+        "Recover from tight hips after running",
+        "Morning mobility before desk work",
+        "15 minute neck pain reset",
+        "Post-leg-day recovery flow",
+      ];
 
   useEffect(() => {
     const exampleInterval = setInterval(() => {
-      if (!prompt && !isClassifying) {
+      if (!prompt && !isClassifying && !parsedIntent) {
         setExampleIndex((prev) => (prev + 1) % examplePrompts.length);
       }
     }, 4000);
     return () => clearInterval(exampleInterval);
-  }, [prompt, isClassifying, examplePrompts.length]);
+  }, [prompt, isClassifying, parsedIntent, examplePrompts.length]);
 
   useEffect(() => {
     let interval: NodeJS.Timeout;
@@ -100,18 +151,45 @@ function AICoachPrompt() {
   }, [isClassifying, loadingMessages.length]);
 
   const handleGenerate = async () => {
-    if (!prompt.trim() || isClassifying) return;
+    if (!prompt.trim() || isClassifying || parsedIntent) return;
 
     setIsClassifying(true);
     try {
       const intent = await classifyWorkoutIntent(prompt);
-      navigate("/studio", {
-        state: {
-          wizardConfig: intent,
-          autoGenerate: true,
-          sourcePrompt: prompt,
-        },
-      });
+      setIsClassifying(false);
+      setParsedIntent(intent);
+
+      try {
+        localStorage.setItem(
+          STORAGE_KEY,
+          JSON.stringify({
+            focus: intent.focus || "",
+            painPoints: intent.painPoints || [],
+            durationMinutes: intent.durationMinutes || 15,
+            goal: intent.goal || "",
+            timestamp: Date.now(),
+          }),
+        );
+      } catch (e) {
+        console.error("Failed to save memory", e);
+      }
+
+      let msgIdx = 0;
+      const tInterval = setInterval(() => {
+        msgIdx++;
+        setTransitionMsgIndex(msgIdx % transitionMessages.length);
+      }, 600);
+
+      setTimeout(() => {
+        clearInterval(tInterval);
+        navigate("/studio", {
+          state: {
+            wizardConfig: intent,
+            autoGenerate: true,
+            sourcePrompt: prompt,
+          },
+        });
+      }, 1800);
     } catch (e) {
       console.error(e);
       // Fallback
@@ -124,89 +202,270 @@ function AICoachPrompt() {
     }
   };
 
+  const calculateDurations = (totalMinutes: number) => {
+    if (!totalMinutes || totalMinutes < 5) totalMinutes = 15;
+    return {
+      warmup: Math.max(1, Math.round(totalMinutes * 0.2)),
+      mobility: Math.max(2, Math.round(totalMinutes * 0.5)),
+      recovery: Math.max(1, Math.round(totalMinutes * 0.2)),
+      cooldown: Math.max(1, Math.round(totalMinutes * 0.1)),
+    };
+  };
+
   return (
     <div className="w-full max-w-3xl mx-auto mb-16 relative z-20">
-      <div className="flex items-center gap-2 mb-3 pl-4 text-charcoal/60 text-[11px] font-bold uppercase tracking-widest hidden sm:flex h-5">
-        <Sparkles className="w-3 h-3 text-gold" />
-        <span>Try:</span>
-        <AnimatePresence mode="popLayout">
-          <motion.span
-            key={exampleIndex}
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -10 }}
-            transition={{ duration: 0.4 }}
-            className="text-charcoal/80"
-          >
-            "{examplePrompts[exampleIndex]}"
-          </motion.span>
-        </AnimatePresence>
-      </div>
+      {memory && !parsedIntent && !isClassifying && (
+        <motion.div
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -10 }}
+          className="flex flex-col items-center mb-5"
+        >
+          <div className="flex items-center gap-2 px-4 py-1.5 bg-charcoal shadow-sm rounded-full mb-2">
+            <Activity className="w-3.5 h-3.5 text-gold animate-pulse" />
+            <span className="text-[11px] uppercase tracking-widest font-bold text-cream">
+              Continuing mobility recovery progression
+            </span>
+          </div>
+          <span className="text-[10px] sm:text-[11px] font-semibold text-charcoal/60 tracking-wider">
+            Balancing recovery load • Previous focus: {memory.focus} •{" "}
+            {memory.durationMinutes}m calibrated
+          </span>
+        </motion.div>
+      )}
+
+      {!parsedIntent && !isClassifying && (
+        <div className="flex items-center justify-center sm:justify-start gap-2 mb-3 sm:pl-4 text-charcoal/60 text-[11px] font-bold uppercase tracking-widest hidden sm:flex h-5">
+          <Sparkles className="w-3 h-3 text-gold" />
+          <span>{memory ? "Suggested:" : "Try:"}</span>
+          <AnimatePresence mode="popLayout">
+            <motion.span
+              key={exampleIndex}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              transition={{ duration: 0.4 }}
+              className="text-charcoal/80"
+            >
+              "{examplePrompts[exampleIndex]}"
+            </motion.span>
+          </AnimatePresence>
+        </div>
+      )}
 
       <motion.div
+        layout
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.25 }}
-        className="w-full bg-white/70 backdrop-blur-xl border border-charcoal/10 rounded-3xl p-2 pl-6 pr-2 flex flex-col sm:flex-row items-center gap-3 shadow-[0_8px_40px_-12px_rgba(0,0,0,0.1)] focus-within:bg-white focus-within:shadow-[0_0_40px_rgba(212,175,55,0.15)] focus-within:ring-2 focus-within:ring-gold/30 transition-all duration-300"
+        className="w-full bg-white/70 backdrop-blur-xl border border-charcoal/10 rounded-3xl p-2 sm:pl-6 sm:pr-2 flex flex-col sm:flex-row items-center gap-3 shadow-[0_8px_40px_-12px_rgba(0,0,0,0.1)] focus-within:bg-white focus-within:shadow-[0_0_40px_rgba(212,175,55,0.15)] focus-within:ring-2 focus-within:ring-gold/30 transition-all duration-300 relative overflow-hidden"
       >
-        <div className="flex-1 w-full py-1 relative">
-          <AnimatePresence>
-            {isClassifying && (
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                className="absolute inset-0 bg-white/95 backdrop-blur-md z-10 flex items-center gap-4 px-2 rounded-xl"
-              >
-                <div className="flex items-center gap-3 px-4 py-2.5 rounded-full bg-charcoal/5 border border-charcoal/10 w-full shadow-inner">
-                  <Activity className="w-4 h-4 text-gold animate-pulse shrink-0" />
-                  <AnimatePresence mode="wait">
-                    <motion.span
-                      key={loadingStep}
-                      initial={{ opacity: 0, y: 5 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0, y: -5 }}
-                      className="text-[10px] sm:text-xs font-black uppercase tracking-[0.2em] text-charcoal/80"
+        <AnimatePresence mode="wait">
+          {parsedIntent ? (
+            <motion.div
+              key="preview"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="w-full p-4 sm:p-6"
+            >
+              <div className="flex flex-col gap-6 w-full">
+                {/* Intent Chips */}
+                <div className="flex flex-wrap gap-2">
+                  <motion.div
+                    initial={{ scale: 0.9, opacity: 0 }}
+                    animate={{ scale: 1, opacity: 1 }}
+                    transition={{ delay: 0.1 }}
+                    className="px-3 py-1.5 rounded-full bg-charcoal/5 border border-charcoal/10 text-xs font-semibold text-charcoal/80 flex items-center gap-1.5"
+                  >
+                    <Target className="w-3.5 h-3.5 text-gold" />{" "}
+                    {parsedIntent.focus} Focus
+                  </motion.div>
+                  <motion.div
+                    initial={{ scale: 0.9, opacity: 0 }}
+                    animate={{ scale: 1, opacity: 1 }}
+                    transition={{ delay: 0.2 }}
+                    className="px-3 py-1.5 rounded-full bg-charcoal/5 border border-charcoal/10 text-xs font-semibold text-charcoal/80 flex items-center gap-1.5"
+                  >
+                    <Activity className="w-3.5 h-3.5 text-gold" />{" "}
+                    {parsedIntent.goal}
+                  </motion.div>
+                  {parsedIntent.painPoints?.map((p: string, i: number) => (
+                    <motion.div
+                      key={p}
+                      initial={{ scale: 0.9, opacity: 0 }}
+                      animate={{ scale: 1, opacity: 1 }}
+                      transition={{ delay: 0.3 + i * 0.1 }}
+                      className="px-3 py-1.5 rounded-full bg-rose-500/10 border border-rose-500/20 text-xs font-semibold text-rose-700 flex items-center gap-1.5"
                     >
-                      {loadingMessages[loadingStep]}
-                    </motion.span>
-                  </AnimatePresence>
+                      <Zap className="w-3.5 h-3.5" /> {p}
+                    </motion.div>
+                  ))}
+                  <motion.div
+                    initial={{ scale: 0.9, opacity: 0 }}
+                    animate={{ scale: 1, opacity: 1 }}
+                    transition={{ delay: 0.5 }}
+                    className="px-3 py-1.5 rounded-full bg-charcoal/5 border border-charcoal/10 text-xs font-semibold text-charcoal/80 flex items-center gap-1.5"
+                  >
+                    <Clock className="w-3.5 h-3.5 text-gold" />{" "}
+                    {parsedIntent.durationMinutes}m Duration
+                  </motion.div>
                 </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
-          <textarea
-            placeholder="Describe your mobility goal..."
-            className="w-full resize-none text-charcoal bg-transparent border-none outline-none text-[15px] sm:text-base placeholder:text-charcoal/30 h-[48px] pt-3 overflow-hidden block custom-scrollbar font-medium"
-            value={prompt}
-            onChange={(e) => setPrompt(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && !e.shiftKey) {
-                e.preventDefault();
-                handleGenerate();
-              }
-            }}
-            disabled={isClassifying}
-          />
-        </div>
-        <button
-          onClick={handleGenerate}
-          disabled={isClassifying || !prompt.trim()}
-          className="relative overflow-hidden w-full sm:w-auto px-7 py-4 rounded-[1.2rem] bg-charcoal text-cream font-bold uppercase tracking-widest text-xs hover:scale-[1.02] active:scale-[0.98] transition-all duration-300 disabled:opacity-50 disabled:hover:scale-100 flex items-center justify-center gap-2 whitespace-nowrap shadow-xl group"
-        >
-          <div className="absolute inset-0 bg-[linear-gradient(110deg,transparent_20%,rgba(255,255,255,0.1)_40%,rgba(255,255,255,0.1)_60%,transparent_80%)] translate-x-[-100%] group-hover:animate-[shimmer_2s_infinite]" />
-          {isClassifying ? (
-            <>
-              <div className="w-4 h-4 border-2 border-gold/30 border-t-gold rounded-full animate-spin" />
-              <span className="relative z-10 text-gold/90">Building...</span>
-            </>
+
+                {/* Blueprint Preview */}
+                <motion.div
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.6 }}
+                  className="bg-charcoal text-cream rounded-2xl p-5 shadow-2xl relative overflow-hidden"
+                >
+                  <div className="absolute inset-0 bg-[linear-gradient(90deg,transparent_0%,rgba(212,175,55,0.05)_50%,transparent_100%)] w-[200%] animate-[shimmer_3s_infinite]" />
+                  <div className="flex items-center gap-2 mb-4 relative z-10">
+                    <Layers className="w-4 h-4 text-gold" />
+                    <h3 className="text-sm font-bold uppercase tracking-widest text-white/90">
+                      Session Blueprint
+                    </h3>
+                  </div>
+
+                  <div className="flex flex-col gap-3 relative z-10">
+                    {[
+                      {
+                        name: "Warmup",
+                        duration: calculateDurations(
+                          parsedIntent.durationMinutes,
+                        ).warmup,
+                        delay: 0.7,
+                      },
+                      {
+                        name: "Mobility Flow",
+                        duration: calculateDurations(
+                          parsedIntent.durationMinutes,
+                        ).mobility,
+                        delay: 0.8,
+                      },
+                      {
+                        name: "Deep Recovery",
+                        duration: calculateDurations(
+                          parsedIntent.durationMinutes,
+                        ).recovery,
+                        delay: 0.9,
+                      },
+                      {
+                        name: "Cooldown",
+                        duration: calculateDurations(
+                          parsedIntent.durationMinutes,
+                        ).cooldown,
+                        delay: 1.0,
+                      },
+                    ].map((phase, i) => (
+                      <motion.div
+                        key={phase.name}
+                        initial={{ opacity: 0, x: -10 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ delay: phase.delay }}
+                        className="flex items-center justify-between text-sm"
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className="w-1.5 h-1.5 rounded-full bg-gold/50" />
+                          <span className="font-medium text-white/80">
+                            {phase.name}
+                          </span>
+                        </div>
+                        <span className="font-mono text-white/50 text-xs">
+                          {phase.duration}m
+                        </span>
+                      </motion.div>
+                    ))}
+                  </div>
+
+                  <div className="mt-5 pt-4 border-t border-white/10 flex items-center justify-between">
+                    <AnimatePresence mode="wait">
+                      <motion.span
+                        key={transitionMsgIndex}
+                        initial={{ opacity: 0, y: 5 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -5 }}
+                        className="text-[10px] sm:text-xs font-black uppercase tracking-[0.2em] text-gold/80"
+                      >
+                        {transitionMessages[transitionMsgIndex]}
+                      </motion.span>
+                    </AnimatePresence>
+                    <div className="w-4 h-4 border-2 border-gold/30 border-t-gold rounded-full animate-spin" />
+                  </div>
+                </motion.div>
+              </div>
+            </motion.div>
           ) : (
-            <>
-              <Sparkles className="w-4 h-4 text-gold" />
-              <span className="relative z-10">Auto-Build</span>
-            </>
+            <motion.div
+              key="input"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="flex flex-col sm:flex-row items-center gap-3 w-full pl-6 pr-2 py-1 relative"
+            >
+              <div className="flex-1 w-full relative">
+                <AnimatePresence>
+                  {isClassifying && (
+                    <motion.div
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      exit={{ opacity: 0 }}
+                      className="absolute inset-0 bg-white/95 backdrop-blur-md z-10 flex items-center gap-4 pr-2 rounded-xl"
+                    >
+                      <div className="flex items-center gap-3 px-4 py-2.5 rounded-full bg-charcoal/5 border border-charcoal/10 w-full shadow-inner">
+                        <Activity className="w-4 h-4 text-gold animate-pulse shrink-0" />
+                        <AnimatePresence mode="wait">
+                          <motion.span
+                            key={loadingStep}
+                            initial={{ opacity: 0, y: 5 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0, y: -5 }}
+                            className="text-[10px] sm:text-xs font-black uppercase tracking-[0.2em] text-charcoal/80"
+                          >
+                            {loadingMessages[loadingStep]}
+                          </motion.span>
+                        </AnimatePresence>
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+                <textarea
+                  placeholder="Describe your mobility goal..."
+                  className="w-full resize-none text-charcoal bg-transparent border-none outline-none text-[15px] sm:text-base placeholder:text-charcoal/30 h-[48px] pt-3 overflow-hidden block custom-scrollbar font-medium"
+                  value={prompt}
+                  onChange={(e) => setPrompt(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && !e.shiftKey) {
+                      e.preventDefault();
+                      handleGenerate();
+                    }
+                  }}
+                  disabled={isClassifying}
+                />
+              </div>
+              <button
+                onClick={handleGenerate}
+                disabled={isClassifying || !prompt.trim()}
+                className="relative overflow-hidden w-full sm:w-auto px-7 py-4 rounded-[1.2rem] bg-charcoal text-cream font-bold uppercase tracking-widest text-xs hover:scale-[1.02] active:scale-[0.98] transition-all duration-300 disabled:opacity-50 disabled:hover:scale-100 flex items-center justify-center gap-2 whitespace-nowrap shadow-xl group"
+              >
+                <div className="absolute inset-0 bg-[linear-gradient(110deg,transparent_20%,rgba(255,255,255,0.1)_40%,rgba(255,255,255,0.1)_60%,transparent_80%)] translate-x-[-100%] group-hover:animate-[shimmer_2s_infinite]" />
+                {isClassifying ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-gold/30 border-t-gold rounded-full animate-spin" />
+                    <span className="relative z-10 text-gold/90">
+                      Building...
+                    </span>
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="w-4 h-4 text-gold" />
+                    <span className="relative z-10">Auto-Build</span>
+                  </>
+                )}
+              </button>
+            </motion.div>
           )}
-        </button>
+        </AnimatePresence>
       </motion.div>
 
       <motion.div
@@ -220,16 +479,12 @@ function AICoachPrompt() {
           movement assets
         </span>
         <span className="flex items-center gap-1.5">
-          <CheckCircle2 className="w-3.5 h-3.5 text-gold/70" /> AI +
-          deterministic recovery engine
+          <CheckCircle2 className="w-3.5 h-3.5 text-gold/70" /> Adaptive
+          orchestration engine active
         </span>
         <span className="flex items-center gap-1.5">
-          <CheckCircle2 className="w-3.5 h-3.5 text-gold/70" /> Export-ready
-          cinematic routines
-        </span>
-        <span className="flex items-center gap-1.5">
-          <CheckCircle2 className="w-3.5 h-3.5 text-gold/70" /> Mobile adaptive
-          playback
+          <CheckCircle2 className="w-3.5 h-3.5 text-gold/70" /> Deterministic
+          recovery safeguards enabled
         </span>
       </motion.div>
     </div>
@@ -245,7 +500,7 @@ function SandboxOrchestrationMonitor() {
     "Hydrating movement sequence...",
     "Generating cinematic transitions...",
     "Preparing adaptive coaching...",
-    "Optimizing recovery cadence..."
+    "Optimizing recovery cadence...",
   ];
 
   useEffect(() => {
@@ -262,18 +517,26 @@ function SandboxOrchestrationMonitor() {
         <div className="flex flex-col gap-2">
           <div className="flex items-center gap-2 px-3 py-1 bg-black/40 rounded-full border border-white/5">
             <div className="w-1.5 h-1.5 rounded-full bg-gold animate-pulse" />
-            <span className="text-[9px] uppercase tracking-[0.2em] font-bold text-white/70">OS Active</span>
+            <span className="text-[9px] uppercase tracking-[0.2em] font-bold text-white/70">
+              OS Active
+            </span>
           </div>
           <div className="flex items-center gap-2 pl-2">
-            <span className="text-[10px] font-mono text-white/40">SEQ_IDX: {String(orchestrationStep).padStart(2, '0')}</span>
+            <span className="text-[10px] font-mono text-white/40">
+              SEQ_IDX: {String(orchestrationStep).padStart(2, "0")}
+            </span>
           </div>
         </div>
         <div className="flex flex-col items-end gap-2">
           <div className="flex items-center gap-2 px-3 py-1 bg-black/40 rounded-full border border-white/5">
             <Activity className="w-3 h-3 text-white/40" />
-            <span className="text-[9px] uppercase tracking-[0.2em] font-bold text-white/70">Orchestrator</span>
+            <span className="text-[9px] uppercase tracking-[0.2em] font-bold text-white/70">
+              Orchestrator
+            </span>
           </div>
-          <div className="text-[10px] font-mono text-white/40 pr-2">MEM: 142MB / 512MB</div>
+          <div className="text-[10px] font-mono text-white/40 pr-2">
+            MEM: 142MB / 512MB
+          </div>
         </div>
       </div>
 
@@ -282,10 +545,10 @@ function SandboxOrchestrationMonitor() {
         <div className="relative mb-8">
           {/* Subtle glowing orb */}
           <div className="absolute inset-0 bg-gold/20 blur-[40px] rounded-full scale-150 animate-pulse" />
-          
+
           <div className="w-24 h-24 rounded-full border-[1px] border-white/10 bg-black/40 flex items-center justify-center relative z-10">
             {/* Spinning ring */}
-            <motion.div 
+            <motion.div
               animate={{ rotate: 360 }}
               transition={{ duration: 12, repeat: Infinity, ease: "linear" }}
               className="absolute inset-0 rounded-full border border-white/5 border-t-gold/50"
@@ -315,11 +578,24 @@ function SandboxOrchestrationMonitor() {
         {/* Fake timeline bars */}
         <div className="w-full max-w-[200px] mt-8 flex flex-col gap-1.5 opacity-40">
           {[40, 80, 60, 100, 50].map((width, i) => (
-            <div key={i} className="h-1 rounded-full bg-white/10 w-full overflow-hidden">
-              <motion.div 
+            <div
+              key={i}
+              className="h-1 rounded-full bg-white/10 w-full overflow-hidden"
+            >
+              <motion.div
                 className="h-full bg-gold/40 rounded-full"
-                animate={{ width: [`${Math.max(10, width - 20)}%`, `${width}%`, `${Math.max(10, width - 20)}%`] }}
-                transition={{ duration: 2 + i * 0.5, repeat: Infinity, ease: "easeInOut" }}
+                animate={{
+                  width: [
+                    `${Math.max(10, width - 20)}%`,
+                    `${width}%`,
+                    `${Math.max(10, width - 20)}%`,
+                  ],
+                }}
+                transition={{
+                  duration: 2 + i * 0.5,
+                  repeat: Infinity,
+                  ease: "easeInOut",
+                }}
               />
             </div>
           ))}
@@ -329,13 +605,17 @@ function SandboxOrchestrationMonitor() {
       {/* Bottom status bar */}
       <div className="absolute bottom-6 left-6 right-6 flex items-end justify-between z-20">
         <div className="flex flex-col gap-1.5">
-          <span className="text-[8px] uppercase tracking-widest text-white/30">Preview Policy</span>
-          <span className="text-[10px] font-medium text-white/50 tracking-wide">Interactive Canvas Disabled (Sandbox)</span>
+          <span className="text-[8px] uppercase tracking-widest text-white/30">
+            Preview Policy
+          </span>
+          <span className="text-[10px] font-medium text-white/50 tracking-wide">
+            Interactive Canvas Disabled (Sandbox)
+          </span>
         </div>
-        
+
         {/* Fake playback shimmer bar */}
         <div className="w-[120px] h-[3px] bg-white/10 rounded-full overflow-hidden self-center">
-          <motion.div 
+          <motion.div
             initial={{ x: "-100%" }}
             animate={{ x: "0%" }}
             transition={{ duration: 3, ease: "linear", repeat: Infinity }}

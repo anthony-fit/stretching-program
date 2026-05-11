@@ -18,7 +18,7 @@ export interface GLP1MuscleGuardAssessment {
   userId: string;
   date: string;
   muscleMassPreservationScore: number;
-  sarcopeniaRiskLevel: 'Low' | 'Medium' | 'High';
+  sarcopeniaRiskLevel: "Low" | "Medium" | "High";
   proteinIntakeAdherence: number;
   recommendedHypertrophyVolume: number;
 }
@@ -44,7 +44,7 @@ export interface OverallAssessment {
 export interface LearningTutorial {
   id: string;
   title: string;
-  type: 'Video' | 'Interactive';
+  type: "Video" | "Interactive";
   content: string;
   keyTakeaways: string[];
 }
@@ -57,10 +57,14 @@ export interface LearningPractice {
 }
 
 // Stubs for future implementation
-export const getLatestOverallAssessment = async (userId: string): Promise<OverallAssessment | null> => {
+export const getLatestOverallAssessment = async (
+  userId: string,
+): Promise<OverallAssessment | null> => {
   return null; // Not implemented yet
-}
+};
 
-export const submitMovementAssessment = async (assessment: MovementAssessment): Promise<void> => {
+export const submitMovementAssessment = async (
+  assessment: MovementAssessment,
+): Promise<void> => {
   console.log("Submitting movement assessment", assessment);
-}
+};
