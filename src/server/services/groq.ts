@@ -1,30 +1,23 @@
 import Groq from "groq-sdk";
 
-export function getAI(apiKey: string) {
-  if (!apiKey || apiKey.trim().length === 0) {
-    throw new Error(
-      "[AI] GROQ_API_KEY environment variable is required",
-    );
-  }
-
-  return new Groq({
-    apiKey,
-  });
-}
-
 export function validateGroqEnvironment(apiKey: string) {
-  if (!apiKey || apiKey.trim().length === 0) {
-    throw new Error("[AI] GROQ_API_KEY environment variable is required");
+  if (!apiKey) {
+    throw new Error("[AI] API key is missing. Skipping LLM generation.");
   }
-  console.log("[AI] GROQ_API_KEY validation passed");
 }
 
 export async function generateCompositionBlueprintViaLLM(
   apiKey: string,
   prefs: any,
   exerciseDatabaseSummary: string,
+  baseURL?: string
 ) {
-  const client = getAI(apiKey);
+  validateGroqEnvironment(apiKey);
+
+  const groqOptions: any = { apiKey };
+  if (baseURL) groqOptions.baseURL = baseURL;
+
+  const groq = new Groq(groqOptions);
 
   const prompt = `
     You are an expert fitness video director and master composition planner.
@@ -42,26 +35,57 @@ export async function generateCompositionBlueprintViaLLM(
     Here is the catalog of available explicit exercises we can map to:
     ${exerciseDatabaseSummary}
 
-    Output strictly as JSON.
+    Output strictly an array of JSON objects representing candidate composition blueprints.
+    Each candidate MUST follow this structure:
+    [{
+      "title": "string",
+      "hook": "string",
+      "pacingArc": "steady" | "build-up" | "intervals" | "cool-down" | "waves",
+      "soundtrackProfile": "cinematic" | "upbeat" | "ambient" | "lofi" | "heavy",
+      "transitionRhythm": "fast" | "medium" | "slow" | "mixed",
+      "subtitleCadence": "rapid" | "standard" | "relaxed",
+      "reasoning": "string",
+      "scenes": [
+        {
+          "exerciseId": "string (MUST perfectly match one of the explicit exercise IDs in the catalog)",
+          "duration": "number",
+          "script": "string",
+          "cameraBehavior": "static" | "slow-zoom" | "pan" | "dynamic",
+          "energyLevel": "low" | "medium" | "high" | "peak"
+        }
+      ]
+    }]
+
+    Output strictly as JSON array.
   `;
 
-  const response = await client.chat.completions.create({
-    model: "llama-3.3-70b-versatile",
+  const chatCompletion = await groq.chat.completions.create({
     messages: [
+      {
+        role: "system",
+        content:
+          "You are a fitness routine architect. Output exactly JSON, no markdown, no conversational text.",
+      },
       {
         role: "user",
         content: prompt,
       },
     ],
+    model: "llama-3.3-70b-versatile",
     temperature: 0.7,
+    max_tokens: 4000,
+    response_format: { type: "json_object" },
   });
 
-  const text = response.choices[0]?.message?.content || "{}";
+  const text = chatCompletion.choices[0]?.message?.content || "[]";
+  console.log("LLM RAW OUTPUT:", text);
 
   try {
-    return JSON.parse(text);
-  } catch {
-    return {};
+    const parsed = JSON.parse(text);
+    return Array.isArray(parsed) ? parsed : [parsed];
+  } catch (e) {
+    console.error("LLM PARSE ERROR:", e);
+    return [];
   }
 }
 
@@ -71,8 +95,14 @@ export async function generateRoutineScript(
   goal: string,
   creatorMode?: string,
   context?: any,
+  baseURL?: string
 ) {
-  const client = getAI(apiKey);
+  validateGroqEnvironment(apiKey);
+  
+  const groqOptions: any = { apiKey };
+  if (baseURL) groqOptions.baseURL = baseURL;
+
+  const groq = new Groq(groqOptions);
 
   const prompt = `
     Create a professional fitness voiceover script for a ${context?.intensity || "standard"} intensity ${goal} workout routine.
@@ -88,42 +118,42 @@ export async function generateRoutineScript(
     { "exerciseName": "string", "script": "string" }
   `;
 
-  const response = await client.chat.completions.create({
-    model: "llama-3.3-70b-versatile",
+  const chatCompletion = await groq.chat.completions.create({
     messages: [
+      {
+        role: "system",
+        content:
+          "You are a fitness scriptwriter. Output exactly JSON, no markdown, no conversational text.",
+      },
       {
         role: "user",
         content: prompt,
       },
     ],
+    model: "llama-3.3-70b-versatile",
     temperature: 0.7,
+    max_tokens: 2000,
   });
 
-  const rawText = response.choices[0]?.message?.content || "[]";
+  const text = chatCompletion.choices[0]?.message?.content || "[]";
 
-  const cleanedText = rawText
-    .replace(/```json/g, "")
-    .replace(/```/g, "")
-    .trim();
+  try {
+    const parsed = JSON.parse(text);
 
-    try {
-      const parsed = JSON.parse(cleanedText);
+    const normalized = Array.isArray(parsed)
+      ? parsed
+      : [parsed];
 
-      const normalized = Array.isArray(parsed)
-        ? parsed
-        : [parsed];
-
-      return normalized;
-    } catch (e) {
-      console.error("[GROQ JSON PARSE FAILED]");
-      console.error(e);
-      return [];
-    }
+    return normalized;
+  } catch (e) {
+    console.error("[GROQ JSON PARSE FAILED]");
+    console.error(e);
+    return [];
+  }
 }
 
-
 export async function generateAIVideo(prompt: string) {
-  console.log("[AI] Groq video generation not available - using placeholder");
+  console.log("[AI] Video generation not available - using placeholder");
 
   return {
     status: "placeholder",
@@ -137,8 +167,14 @@ export async function generateSEOMetadata(
   exercises: { name: string; duration: number }[],
   goal: string,
   context?: any,
+  baseURL?: string
 ) {
-  const client = getAI(apiKey);
+  validateGroqEnvironment(apiKey);
+  
+  const groqOptions: any = { apiKey };
+  if (baseURL) groqOptions.baseURL = baseURL;
+
+  const groq = new Groq(groqOptions);
 
   const prompt = `
     Generate SEO metadata for a fitness workout video.
@@ -149,18 +185,23 @@ export async function generateSEOMetadata(
     Return JSON with: title, description, keywords, ogImage suggestion.
   `;
 
-  const response = await client.chat.completions.create({
-    model: "llama-3.3-70b-versatile",
+  const chatCompletion = await groq.chat.completions.create({
     messages: [
+      {
+        role: "system",
+        content: "You are an SEO expert. Output exactly JSON.",
+      },
       {
         role: "user",
         content: prompt,
       },
     ],
+    model: "llama-3.3-70b-versatile",
     temperature: 0.7,
+    max_tokens: 1000,
   });
 
-  const text = response.choices[0]?.message?.content || "{}";
+  const text = chatCompletion.choices[0]?.message?.content || "{}";
 
   try {
     return JSON.parse(text);
@@ -175,8 +216,14 @@ export async function generateSocialCaptions(
   goal: string,
   creatorMode?: string,
   context?: any,
+  baseURL?: string
 ) {
-  const client = getAI(apiKey);
+  validateGroqEnvironment(apiKey);
+  
+  const groqOptions: any = { apiKey };
+  if (baseURL) groqOptions.baseURL = baseURL;
+
+  const groq = new Groq(groqOptions);
 
   const prompt = `
     Generate social media captions for a short-form fitness workout video.
@@ -188,18 +235,23 @@ export async function generateSocialCaptions(
     Return JSON with: caption, hashtags, hooks.
   `;
 
-  const response = await client.chat.completions.create({
-    model: "llama-3.3-70b-versatile",
+  const chatCompletion = await groq.chat.completions.create({
     messages: [
+      {
+        role: "system",
+        content: "You are a social media manager. Output exactly JSON.",
+      },
       {
         role: "user",
         content: prompt,
       },
     ],
+    model: "llama-3.3-70b-versatile",
     temperature: 0.7,
+    max_tokens: 1000,
   });
 
-  const text = response.choices[0]?.message?.content || "{}";
+  const text = chatCompletion.choices[0]?.message?.content || "{}";
 
   try {
     return JSON.parse(text);
@@ -207,3 +259,4 @@ export async function generateSocialCaptions(
     return {};
   }
 }
+

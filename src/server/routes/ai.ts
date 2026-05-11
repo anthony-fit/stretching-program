@@ -5,7 +5,7 @@ import {
   generateRoutineScript,
   generateSEOMetadata,
   generateSocialCaptions,
-} from "../services/groq";
+} from "../services/groq.ts";
 
 
 const router = Router();

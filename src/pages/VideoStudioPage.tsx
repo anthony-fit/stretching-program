@@ -55,19 +55,9 @@ import {
   Music,
   Share2,
 } from "lucide-react";
-import { MasterReviewPlayer } from "../components/MasterReviewPlayer";
+const MasterReviewPlayer = React.lazy(() => import("../components/MasterReviewPlayer").then(module => ({ default: module.MasterReviewPlayer })));
 import StretchAnimationPlayer from "../components/StretchAnimationPlayer";
 import { Exercise, EXERCISE_DATABASE } from "../data/exercises";
-import {
-  generateRoutineScript,
-
-  generateAIVideo,
-  generateSEOMetadata,
-  generateSocialCaptions,
-} from "../api/client";
-import { generateIntelligentRoutine } from "../lib/workoutEngine";
-import { generateCompositionBlueprint } from "../lib/compositionPlanner";
-import { recordGeneratedBlueprint, recordCompositionExport } from "../lib/compositionMemory";
 import {
   calculateReadiness,
   getProgressionFromReports,
@@ -1513,6 +1503,9 @@ secondaryMuscles: ex.secondaryMuscles || [],
 
     try {
       // Create blueprint completely via LLM
+      const { generateCompositionBlueprint } = await import("../lib/compositionPlanner");
+      const { recordGeneratedBlueprint } = await import("../lib/compositionMemory");
+      
       const blueprint = await generateCompositionBlueprint({
         ...config,
         durationMinutes,
@@ -1575,8 +1568,100 @@ secondaryMuscles: ex.secondaryMuscles || [],
       setTimeout(() => setGenerationMessage(null), 5000);
 
     } catch (e) {
-      console.warn("Speech synthesis unavailable:", e);
-      setIsInitializingProtocol(false);
+      console.warn("AI generation failed or Groq key missing. Falling back to deterministic routine:", e);
+      setGenerationMessage("AI unavailable. Enacting deterministic fallback protocol...");
+        
+      try {
+        const { generateLocalRoutine } = await import("../services/localRoutineService");
+        const fallBackRoutine = generateLocalRoutine(
+            config.level,
+            config.focus,
+            durationMinutes,
+            exercises
+        );
+
+        if (!fallBackRoutine || !fallBackRoutine.exercises || fallBackRoutine.exercises.length === 0) {
+            throw new Error("Local fallback returned empty timeline.");
+        }
+
+        const generatedItems: StoryboardItem[] = [];
+        const generatedAiScript: { exerciseName: string; script: string;  }[] = [];
+
+        fallBackRoutine.exercises.forEach((exItem) => {
+            let exMatch = exercises.find((ex: any) => ex.name.toLowerCase() === exItem.name.toLowerCase());
+            if (!exMatch) exMatch = exercises[0]; // guarantee an item
+
+            // Parse deterministic duration correctly (either number or string like '1 Minute')
+            let itemDuration = 60; // default 1m
+            if (typeof exItem.duration === 'number') {
+                itemDuration = exItem.duration;
+            } else if (typeof exItem.duration === 'string') {
+                if (exItem.duration.includes('Minute')) {
+                    itemDuration = parseInt(exItem.duration) * 60;
+                } else if (exItem.duration.includes('Second')) {
+                    itemDuration = parseInt(exItem.duration);
+                }
+            }
+            if (isNaN(itemDuration) || itemDuration <= 0) itemDuration = 60;
+
+            generatedItems.push({
+                ...exMatch,
+                duration: itemDuration,
+                baseDuration: itemDuration,
+                instanceId: generateId(),
+                reason: "Deterministic Generation Engine Fallback",
+            });
+
+            generatedAiScript.push({
+                exerciseName: exMatch.name,
+                script: exItem.instruction || "Follow the prescribed form carefully.",
+            });
+        });
+
+        // Ensure we respect totalSeconds (trim excess duration if necessary)
+        // Since deterministic generator might just produce fixed numbers
+        let runningTotal = 0;
+        for (let i = 0; i < generatedItems.length; i++) {
+           runningTotal += generatedItems[i].duration;
+        }
+        
+        // If it heavily exceeds or is shorter, we scale the items proportionally
+        if (runningTotal > 0 && Math.abs(runningTotal - totalSeconds) > 30) {
+           const scaleFactor = totalSeconds / runningTotal;
+           generatedItems.forEach(item => {
+              item.duration = Math.max(10, Math.floor(item.duration * scaleFactor));
+              item.baseDuration = item.duration;
+           });
+        }
+
+        setStoryboard(generatedItems);
+        setAiScript(generatedAiScript);
+
+        setWorkoutSummary({
+           primaryGoal: fallBackRoutine.title || `${config.type} Protocol`,
+           trainingFocus: fallBackRoutine.focusArea || config.focus,
+           mobilityEmphasis: 50,
+           strengthEmphasis: 30,
+           cardioEmphasis: 20,
+           recoveryFocus: "Deterministic",
+           safetyNotes: [fallBackRoutine.motivationalNote || "Focus on form"],
+           reasoning: "Generated without AI cloud latency."
+        });
+
+        applyCreatorMode(wizardConfig.creatorMode);
+        setShowWizard(false);
+        setIsInitializingProtocol(false);
+        Orchestrator.seekToScene(0, 0);
+
+        const coachName = COACH_PROFILES.find(c => c.id === config.selectedCoachId)?.name || 'Coach';
+        setGenerationMessage(`Deterministic Blueprint Executed. ${coachName} timeline active.`);
+        setTimeout(() => setGenerationMessage(null), 5000);
+      } catch(fallbackError) {
+          console.error("Local fallback also failed:", fallbackError);
+          showNotification("Initialization Failed. Systems Offline.");
+          setIsInitializingProtocol(false);
+          setGenerationMessage(null);
+      }
     }
   };
 
@@ -1585,6 +1670,7 @@ secondaryMuscles: ex.secondaryMuscles || [],
       if (items.length === 0) return;
       setIsGeneratingAi(true);
       try {
+        const { generateRoutineScript } = await import("../api/client");
         const script = await generateRoutineScript(
           items.map((i) => ({ name: i.name, duration: i.duration })),
           wizardConfig.type,
@@ -1711,6 +1797,7 @@ secondaryMuscles: ex.secondaryMuscles || [],
   ) => {
     setIsGeneratingVideo((prev) => ({ ...prev, [instanceId]: true }));
     try {
+      const { generateAIVideo } = await import("../api/client");
       const result = await generateAIVideo(exerciseName);
       if (result) {
         showNotification(`AI Video Generation started for ${exerciseName}.`);
@@ -1743,6 +1830,7 @@ secondaryMuscles: ex.secondaryMuscles || [],
         storyTheme: storyTheme?.label
       };
 
+      const { generateSEOMetadata, generateSocialCaptions } = await import("../api/client");
       const [seo, socials] = await Promise.all([
         generateSEOMetadata(exercises, wizardConfig.type, coachContext),
         generateSocialCaptions(exercises, wizardConfig.type, activeCreatorMode || undefined, coachContext),
@@ -1886,7 +1974,9 @@ secondaryMuscles: ex.secondaryMuscles || [],
 
     // Record export event for taste modeling
     if (activeBlueprintIdRef.current) {
-      recordCompositionExport(activeBlueprintIdRef.current);
+      import("../lib/compositionMemory").then(({ recordCompositionExport }) => {
+        if (activeBlueprintIdRef.current) recordCompositionExport(activeBlueprintIdRef.current);
+      }).catch(e => console.error("Could not lazily track export", e));
     }
 
     let baseFileName =
@@ -3004,7 +3094,7 @@ secondaryMuscles: ex.secondaryMuscles || [],
     };
 
     return (
-      <div className="flex-1 overflow-y-auto px-4 md:px-6 py-6 space-y-6 custom-scrollbar min-h-0 pb-32">
+      <div className="md:flex-1 overflow-x-hidden md:overflow-y-auto px-4 md:px-6 py-6 space-y-6 custom-scrollbar pb-32">
         {workoutReports.length === 0 ? (
           <div className="space-y-6">
              {/* New User Welcome / Value Discovery */}
@@ -3835,7 +3925,7 @@ secondaryMuscles: ex.secondaryMuscles || [],
       animate={V.fadeUp.animate}
       exit={V.fadeUp.exit}
       transition={{ duration: transitionClasses.cinematic.duration * motionMultiplier, ease: transitionClasses.cinematic.ease }}
-      className={`flex-1 min-h-0 w-full max-w-full bg-charcoal text-cream flex flex-col overflow-x-hidden md:overflow-hidden font-sans antialiased relative transition-all duration-[2000ms] ease-in-out ${ambientClasses}`}
+      className={`flex-1 md:min-h-0 w-full max-w-full bg-charcoal text-cream flex flex-col overflow-x-hidden md:overflow-hidden font-sans antialiased relative transition-all duration-[2000ms] ease-in-out ${ambientClasses}`}
     >
       {/* Adaptive Atmosphere Layer */}
       {generationMessage && (
@@ -4006,31 +4096,33 @@ secondaryMuscles: ex.secondaryMuscles || [],
             </div>
 
             {/* Main Content Area */}
-            <div className="flex-none md:flex-1 md:min-h-0 bg-[#FDFBF7] text-charcoal p-4 md:p-12 pb-[calc(1rem+env(safe-area-inset-bottom))] md:pb-12 md:overflow-y-auto relative">
+            <div className="flex-1 min-h-0 bg-[#FDFBF7] text-charcoal flex flex-col relative overflow-hidden">
               <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-white/60 via-transparent to-transparent pointer-events-none" />
 
-              <div className="max-w-5xl mx-auto relative z-10 space-y-12">
+              {/* Scrollable inner content */}
+              <div className="flex-1 overflow-y-auto w-full p-4 md:p-12 pb-[calc(2rem+env(safe-area-inset-bottom))] custom-scrollbar relative z-10">
+                <div className="max-w-5xl mx-auto space-y-12 flex flex-col min-h-full">
 
-                {/* Header Controls */}
-                <div className="flex items-center justify-between">
-                  {/* Tab Selector */}
-                  <div className="flex bg-charcoal/5 p-1.5 rounded-full w-fit shadow-sm border border-charcoal/5">
-                    <button
-                      onClick={() => setWizardTab("templates")}
-                      className={`px-8 py-2.5 rounded-full text-[10px] font-black uppercase tracking-widest transition-all duration-300 ${wizardTab === "templates" ? "bg-white text-charcoal shadow-sm scale-105" : "text-charcoal/40 hover:text-charcoal"}`}
-                    >
-                      Presets
-                    </button>
-                    <button
-                      onClick={() => setWizardTab("custom")}
-                      className={`px-8 py-2.5 rounded-full text-[10px] font-black uppercase tracking-widest transition-all duration-300 ${wizardTab === "custom" ? "bg-white text-charcoal shadow-sm scale-105" : "text-charcoal/40 hover:text-charcoal"}`}
-                    >
-                      Custom Build
-                    </button>
+                  {/* Header Controls */}
+                  <div className="flex items-center justify-between shrink-0">
+                    {/* Tab Selector */}
+                    <div className="flex bg-charcoal/5 p-1.5 rounded-full w-fit shadow-sm border border-charcoal/5">
+                      <button
+                        onClick={() => setWizardTab("templates")}
+                        className={`px-8 py-2.5 rounded-full text-[10px] font-black uppercase tracking-widest transition-all duration-300 ${wizardTab === "templates" ? "bg-white text-charcoal shadow-sm scale-105" : "text-charcoal/40 hover:text-charcoal"}`}
+                      >
+                        Presets
+                      </button>
+                      <button
+                        onClick={() => setWizardTab("custom")}
+                        className={`px-8 py-2.5 rounded-full text-[10px] font-black uppercase tracking-widest transition-all duration-300 ${wizardTab === "custom" ? "bg-white text-charcoal shadow-sm scale-105" : "text-charcoal/40 hover:text-charcoal"}`}
+                      >
+                        Custom Build
+                      </button>
+                    </div>
                   </div>
-                </div>
 
-                {wizardTab === "templates" ? (
+                  {wizardTab === "templates" ? (
                   <motion.div
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
@@ -4344,10 +4436,15 @@ secondaryMuscles: ex.secondaryMuscles || [],
                       </div>
                     </motion.div>
                   )}
+
+                  {/* Spacer to push button to bottom if content is short */}
+                  <div className="flex-1 min-h-[0px]" />
                 </div>
+              </div>
 
-
-                <div className="flex flex-col md:flex-row items-center justify-between pt-6 md:pt-10 border-t border-charcoal/5 mt-auto gap-3 shrink-0 relative md:sticky bottom-0 bg-[#FDFBF7]/90 backdrop-blur pb-[calc(1.5rem+env(safe-area-inset-bottom))] md:pb-6">
+              {/* Fixed Bottom Bar */}
+              <div className="flex-none pt-4 pb-4 md:pt-6 md:pb-6 px-4 md:px-12 border-t border-charcoal/5 bg-[#FDFBF7]/95 backdrop-blur-xl relative z-20 shadow-[0_-10px_30px_rgba(0,0,0,0.02)]">
+                <div className="max-w-5xl mx-auto flex flex-col md:flex-row items-center justify-between gap-3">
                   <button
                     onClick={() => {
                       setIsInitializingProtocol(true);
@@ -4387,13 +4484,14 @@ secondaryMuscles: ex.secondaryMuscles || [],
                   </p>
                 )}
               </div>
+            </div>
           </motion.div>
         )}
       </AnimatePresence>
 
-      <div className="flex-1 flex flex-col md:flex-row overflow-x-hidden md:overflow-hidden min-h-0 min-w-0 w-full">
+      <div className="flex-1 flex flex-col md:flex-row overflow-x-hidden md:overflow-hidden md:min-h-0 min-w-0 w-full">
         {/* Sidebar - Assets & Search (Order 2 on mobile) */}
-        <div className="w-full md:w-80 border-t md:border-t-0 md:border-r border-cream/10 flex flex-col bg-charcoal md:bg-charcoal/80 md:backdrop-blur-md order-2 md:order-1 md:h-auto overflow-x-hidden md:overflow-hidden shrink-0 min-h-0">
+        <div className="w-full md:w-80 border-t md:border-t-0 md:border-r border-cream/10 flex flex-col bg-charcoal md:bg-charcoal/80 md:backdrop-blur-md order-2 md:order-1 md:h-auto overflow-x-hidden md:overflow-hidden shrink-0 md:min-h-0">
           {/* Ad Space Placeholder */}
           <div className="hidden md:block p-3 border-b border-cream/5 text-center shrink-0">
             <span className="text-[8px] font-black uppercase tracking-[0.3em] text-cream/20">
@@ -4453,7 +4551,7 @@ secondaryMuscles: ex.secondaryMuscles || [],
             />
           </div>
 
-          <div className="flex-1 overflow-hidden relative min-h-0">
+          <div className="flex-1 overflow-x-hidden md:overflow-hidden relative md:min-h-0">
             <AnimatePresence mode="wait">
               <motion.div
                 key={activeTab}
@@ -4461,10 +4559,10 @@ secondaryMuscles: ex.secondaryMuscles || [],
                 animate={{ opacity: 1, scale: 1 }}
                 exit={{ opacity: 0, scale: 0.98 }}
                 transition={transitionClasses.system}
-                className="absolute inset-0 flex flex-col pt-4 overflow-hidden"
+                className="relative md:absolute md:inset-0 flex flex-col pt-4 overflow-x-hidden md:overflow-hidden"
               >
                 {activeTab === "assets" && (
-                  <div className="flex-1 flex flex-col h-full overflow-hidden min-h-0">
+                  <div className="flex-1 flex flex-col md:h-full overflow-x-hidden md:overflow-hidden md:min-h-0">
                     <div className="px-6 pb-6 shrink-0 space-y-6">
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-3">
@@ -4515,14 +4613,14 @@ secondaryMuscles: ex.secondaryMuscles || [],
                       </div>
                     </div>
 
-                    <div className="flex-1 overflow-y-auto px-4 py-6 space-y-3 custom-scrollbar min-h-0">
+                    <div className="md:flex-1 overflow-x-hidden md:overflow-y-auto px-4 py-6 space-y-3 custom-scrollbar">
                       {renderedAssetList}
                     </div>
                   </div>
                 )}
 
                 {activeTab === "script" && (
-                  <div className="flex-1 overflow-y-auto p-6 space-y-6 custom-scrollbar min-h-0">
+                  <div className="md:flex-1 overflow-x-hidden md:overflow-y-auto p-6 space-y-6 custom-scrollbar">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-3">
                         <div className="w-8 h-8 rounded-xl bg-gold/10 flex items-center justify-center border border-gold/20">
@@ -4546,7 +4644,7 @@ secondaryMuscles: ex.secondaryMuscles || [],
                 {activeTab === "progression" && renderedProgressionTab}
 
                 {activeTab === "music" && (
-                  <div className="flex-1 overflow-y-auto p-6 space-y-8 custom-scrollbar min-h-0">
+                  <div className="md:flex-1 overflow-x-hidden md:overflow-y-auto p-6 space-y-8 custom-scrollbar">
                     <div className="space-y-6">
                       <div className="flex items-center justify-between">
                          <div className="flex items-center gap-3">
@@ -4645,7 +4743,7 @@ secondaryMuscles: ex.secondaryMuscles || [],
                 )}
 
                 {activeTab === "format" && (
-                  <div className="flex-1 overflow-y-auto p-6 space-y-8 custom-scrollbar min-h-0">
+                  <div className="md:flex-1 overflow-x-hidden md:overflow-y-auto p-6 space-y-8 custom-scrollbar">
                     <div className="space-y-6">
                       <div className="flex items-center gap-3">
                         <div className="w-8 h-8 rounded-xl bg-gold/10 flex items-center justify-center border border-gold/20">
@@ -4731,7 +4829,7 @@ secondaryMuscles: ex.secondaryMuscles || [],
                 )}
 
                 {activeTab === "growth" && (
-                  <div className="flex-1 overflow-y-auto p-6 space-y-8 custom-scrollbar min-h-0">
+                  <div className="md:flex-1 overflow-x-hidden md:overflow-y-auto p-6 space-y-8 custom-scrollbar">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-3">
                         <div className="w-8 h-8 rounded-xl bg-gold/10 flex items-center justify-center border border-gold/20">
@@ -4884,7 +4982,7 @@ secondaryMuscles: ex.secondaryMuscles || [],
         </div>
 
         {/* Main Preview Area (Order 1 on mobile) */}
-        <div className="flex-1 flex flex-col relative bg-[#0a0a0a] order-1 md:order-2 md:h-auto overflow-y-auto md:overflow-hidden overflow-x-hidden shrink-0 min-w-0 min-h-0 custom-scrollbar">
+        <div className="flex-1 flex flex-col relative bg-[#0a0a0a] order-1 md:order-2 md:h-auto overflow-x-hidden md:overflow-hidden shrink-0 min-w-0 md:min-h-0">
           {/* Top Control Bar */}
           <div className="sticky top-0 z-50 h-14 md:h-20 border-b border-cream/10 flex items-center justify-between px-3 md:px-8 bg-charcoal/80 overflow-x-auto no-scrollbar shrink-0 backdrop-blur-xl">
             <div className="flex items-center gap-3 md:gap-6 flex-shrink-0">
@@ -5162,15 +5260,17 @@ secondaryMuscles: ex.secondaryMuscles || [],
               />
 
               {exportState === "review" && renderBlobUrlRef.current ? (
-                <MasterReviewPlayer
-                  src={renderBlobUrlRef.current}
-                  metadata={{
-                      duration: storyboard.reduce((acc, item) => acc + item.duration, 0),
-                      fps: isMobileViewport ? 24 : 30,
-                      resolution: aspectRatio === "9:16" ? "1080x1920" : aspectRatio === "16:9" ? "1920x1080" : "1080x1080",
-                    codec: "VP8/WebM"
-                  }}
-                />
+                <React.Suspense fallback={<div className="absolute inset-0 flex items-center justify-center bg-black"><Loader2 className="w-8 h-8 text-gold animate-spin" /></div>}>
+                  <MasterReviewPlayer
+                    src={renderBlobUrlRef.current}
+                    metadata={{
+                        duration: storyboard.reduce((acc, item) => acc + item.duration, 0),
+                        fps: isMobileViewport ? 24 : 30,
+                        resolution: aspectRatio === "9:16" ? "1080x1920" : aspectRatio === "16:9" ? "1920x1080" : "1080x1080",
+                      codec: "VP8/WebM"
+                    }}
+                  />
+                </React.Suspense>
               ) : storyboard.length > 0 ? (
                 <div className="absolute inset-0">
                   <AnimatePresence initial={false}>

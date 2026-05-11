@@ -1,30 +1,71 @@
 export function normalize(str: string) {
   if (!str) return "";
-  return str
+  let base = str
     .toString()
     .toLowerCase()
+    .replace(/['’]s\b/g, "") // child's -> child
     .replace(/['’]/g, "")
     .replace(/[^a-z0-9]/g, " ")
+    .replace(/\b(left|right|stretch|pose|hold|drill)\b/g, " ")
     .replace(/\s+/g, " ")
     .trim();
+  
+  if (!base) {
+     // If the entire string was "right stretch", fallback to original alphanumeric
+     base = str
+      .toString()
+      .toLowerCase()
+      .replace(/[^a-z0-9]/g, " ")
+      .replace(/\s+/g, " ")
+      .trim();
+  }
+  return base;
 }
 
 export function findBestMatch(name: string, db: Record<string, string>): string | null {
-  let input = normalize(name);
-
-  // Apply known easy aliases before matching
-  const aliases: Record<string, string> = {
-    "cat cow stretch": "cat cow pose"
+  // First, check explicit exact full-string aliases before we heavily normalize
+  const rawInput = name.toLowerCase().replace(/[^a-z0-9 ]/g, " ").replace(/\s+/g, " ").trim();
+  const explicitAliases: Record<string, string> = {
+    "cat cow stretch": "cat cow pose",
+    "cat cow": "cat cow pose",
+    "cat and cow": "cat cow pose",
+    "downward dog": "downward facing dog",
+    "down dog": "downward facing dog",
+    "downward facing dog pose": "downward facing dog",
+    "childs pose": "childs pose",
+    "child pose": "childs pose",
+    "cross body shoulder stretch": "shoulder stretch",
+    "crossbody shoulder stretch": "shoulder stretch",
+    "glute bridge": "bridge",
+    "glute bridges": "bridge",
+    "butt lift": "bridge",
+    "bridges": "bridge",
+    "sit ups": "abdominal crunches",
+    "sit up": "abdominal crunches",
+    "push up": "push ups",
+    "pushup": "push ups",
+    "pushups": "push ups",
+    "jumping jack": "jumping jacks",
+    "lunge": "lunges",
+    "squat": "squats",
+    "side plank": "side plank right"
   };
-  if (aliases[input]) {
-    input = aliases[input];
-  }
+
+  let searchTarget = explicitAliases[rawInput] || rawInput;
+
+  let input = normalize(searchTarget);
 
   let bestMatch: string | null = null;
   let bestScore = 0;
 
   for (const key in db) {
+    const targetRaw = key.toLowerCase();
     const target = normalize(key);
+    
+    // Direct raw match bypasses arbitrary scoring algorithms
+    if (searchTarget === targetRaw) {
+        return key;
+    }
 
     let score = 0;
 
@@ -40,6 +81,9 @@ export function findBestMatch(name: string, db: Record<string, string>): string 
 
     const common = inputWords.filter(word => targetWords.includes(word));
     score += common.length * 15;
+
+    // Favor shorter target strings (less specific means more generic match)
+    score -= targetWords.length; 
 
     if (score > bestScore) {
       bestScore = score;

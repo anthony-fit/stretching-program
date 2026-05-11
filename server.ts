@@ -4,8 +4,8 @@ import dotenv from "dotenv";
 import path from "path";
 import fs from "fs";
 import { fileURLToPath } from "url";
-import aiRoutes from "./src/server/routes/ai";
-import { validateGroqEnvironment } from "./src/server/services/groq";
+import aiRoutes from "./src/server/routes/ai.ts";
+import { validateGroqEnvironment } from "./src/server/services/groq.ts";
 
 dotenv.config();
 
@@ -13,7 +13,9 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 // Ensure cache directory exists
-const CACHE_DIR = path.join(process.cwd(), "gif-cache");
+const CACHE_DIR = process.env.NODE_ENV === "production" 
+  ? path.join("/tmp", "gif-cache")
+  : path.join(process.cwd(), "gif-cache");
 if (!fs.existsSync(CACHE_DIR)) {
   fs.mkdirSync(CACHE_DIR, { recursive: true });
 }
@@ -36,6 +38,14 @@ async function startServer() {
 
   // AI API routes
   app.use("/api", aiRoutes);
+
+  app.get("/api/env-check", (req, res) => {
+    res.json({
+      hasGeminiKey: !!process.env.GEMINI_API_KEY,
+      geminiKeyPrefix: process.env.GEMINI_API_KEY ? process.env.GEMINI_API_KEY.substring(0, 5) : "",
+      nodeEnv: process.env.NODE_ENV,
+    });
+  });
 
   // Local GIF Proxy & Cache
   app.get("/api/proxy-gif", async (req, res) => {
@@ -141,7 +151,10 @@ async function startServer() {
       for (const term of searchVariations) {
         console.log(`[API Search] Trying variation: "${term}"`);
 
-        let matches = db!.filter(item => item.name.toLowerCase().includes(term.toLowerCase()));
+        let matches = db!.filter((item: any) => {
+           let normalizedName = item.name.toLowerCase().replace(/[^a-z0-9]+/g, " ").replace(/\s+/g, " ").trim();
+           return normalizedName.includes(term.toLowerCase());
+        });
 
         // Prioritize "stretching" category or "body only" equipment
         const stretchesBodyOnly = matches.filter(i => i.equipment === "body only" || i.category === "stretching");

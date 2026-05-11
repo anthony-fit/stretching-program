@@ -43,7 +43,13 @@ export function generateLocalRoutine(
     // Check if we have an exact matching wger exercise
     const wgerMatch = wgerExercises.find(w => {
       if (!w?.name) return false;
-      return w.name.toLowerCase().trim() === base.name.toLowerCase().trim();
+      const cleanW = w.name.toLowerCase().replace(/[^a-z0-9]/g, "").trim();
+      const cleanB = base.name.toLowerCase().replace(/[^a-z0-9]/g, "").trim();
+      if (cleanW === cleanB) return true;
+      // also allow fallback to matched aliases by relying on basic inclusions/normalizations
+      const nW = w.name.toLowerCase().replace(/[^a-z]/g, "");
+      const nB = base.name.toLowerCase().replace(/[^a-z]/g, "");
+      return nW === nB || nW.includes(nB) || nB.includes(nW) || (nB.includes("catcow") && nW.includes("catcow")) || (nB.includes("child") && nW.includes("child"));
     });
 
     return {
@@ -56,9 +62,14 @@ export function generateLocalRoutine(
 
   // Strict wger validation
   let validated = exercises.filter(ex => {
-    const existsInWger = wgerExercises.some(w =>
-      w.name.toLowerCase().trim() === ex.name.toLowerCase().trim()
-    );
+    const existsInWger = wgerExercises.some(w => {
+      const cleanW = w.name.toLowerCase().replace(/[^a-z0-9]/g, "").trim();
+      const cleanEx = ex.name.toLowerCase().replace(/[^a-z0-9]/g, "").trim();
+      if (cleanW === cleanEx) return true;
+      const nW = w.name.toLowerCase().replace(/[^a-z]/g, "");
+      const nEx = ex.name.toLowerCase().replace(/[^a-z]/g, "");
+      return nW === nEx || nW.includes(nEx) || nEx.includes(nW) || (nEx.includes("catcow") && nW.includes("catcow")) || (nEx.includes("child") && nW.includes("child"));
+    });
     console.log("Clinical Validation:", { name: ex.name, existsInWger });
     return existsInWger;
   });
@@ -77,7 +88,9 @@ export function generateLocalRoutine(
     const fallbacks = wgerWithVideo.slice(0, 5).map(w => {
       // Find matching in verified
       for (const vKey of Object.keys(VERIFIED_EXERCISES)) {
-        if (VERIFIED_EXERCISES[vKey].name.toLowerCase() === w.name.toLowerCase()) {
+        const cleanV = VERIFIED_EXERCISES[vKey].name.toLowerCase().replace(/[^a-z0-9]/g, "").trim();
+        const cleanW = w.name.toLowerCase().replace(/[^a-z0-9]/g, "").trim();
+        if (cleanV === cleanW) {
            return { ...VERIFIED_EXERCISES[vKey], duration: '1 Minute', videoSource: 'wger.de', imageUrl: w.imageUrl || null };
         }
       }
@@ -141,7 +154,9 @@ export function generateLocalRoutine(
     return candidates.map(w => {
       // Try to find in verified first
       for (const vKey of Object.keys(VERIFIED_EXERCISES)) {
-        if (VERIFIED_EXERCISES[vKey].name.toLowerCase() === w.name.toLowerCase()) {
+        const cleanV = VERIFIED_EXERCISES[vKey].name.toLowerCase().replace(/[^a-z0-9]/g, "").trim();
+        const cleanW = w.name.toLowerCase().replace(/[^a-z0-9]/g, "").trim();
+        if (cleanV === cleanW) {
           return { ...VERIFIED_EXERCISES[vKey], duration: '1 Minute', videoSource: 'wger.de', imageUrl: w.imageUrl || null };
         }
       }
@@ -173,7 +188,9 @@ export function generateLocalRoutine(
       .slice(0, needed)
       .map(w => {
         for (const vKey of Object.keys(VERIFIED_EXERCISES)) {
-          if (VERIFIED_EXERCISES[vKey].name.toLowerCase() === w.name.toLowerCase()) {
+          const cleanV = VERIFIED_EXERCISES[vKey].name.toLowerCase().replace(/[^a-z0-9]/g, "").trim();
+          const cleanW = w.name.toLowerCase().replace(/[^a-z0-9]/g, "").trim();
+          if (cleanV === cleanW) {
             return { ...VERIFIED_EXERCISES[vKey], duration: '1 Minute', videoSource: 'wger.de', imageUrl: w.imageUrl || null };
           }
         }

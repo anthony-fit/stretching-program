@@ -45,7 +45,6 @@ export default function StretchAnimationPlayer({
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const utteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
 
-  const totalFrames = 12; // Standard sequence length
   const fps = 10;
 
   const currentTrack = TRACKS[currentTrackIndex];
@@ -99,10 +98,8 @@ export default function StretchAnimationPlayer({
         }
       } catch (err: any) {
         console.warn("RapidAPI data unavailable for:", searchTerm, err);
-        // If it's a specific API error reported by our server (403/429)
-        if (err.message?.includes("429") || err.message?.includes("403")) {
-          setHasError(true);
-        }
+        // Let it fall back to local animation system instead of erroring out completely
+        // even on 429/403.
       } finally {
         setIsApiLoading(false);
       }
@@ -250,37 +247,31 @@ export default function StretchAnimationPlayer({
     }
   };
 
+  const [actualTotalFrames, setActualTotalFrames] = useState(12);
+  const [isFullyBroken, setIsFullyBroken] = useState(false);
+
   // Check manifest to immediately fallback if known missing
   const isAvailable = manifest.includes(requestedSlug);
 
   const currentSlug = (!isAvailable || useFallback) && !gifUrl ? "default_stretch" : requestedSlug;
   const framesBasePath = `/animations/${currentSlug}`;
+  // If we're on the fallback, we know it's a 1-frame placeholder
+  const effectiveTotalFrames = currentSlug === "default_stretch" ? 1 : actualTotalFrames;
 
   useEffect(() => {
-    // Reset state when exercise changes
+    // Reset state ONLY when the requested exercise changes
     setHasError(false);
     setIsLoaded(false);
     setUseFallback(false);
     setFrame(1);
-
-    // If we are using the local animation system, check if files exist
-    if (!gifUrl) {
-      const testImg = new Image();
-      testImg.src = `${framesBasePath}/frame_001.webp`;
-      testImg.onerror = () => {
-        if (!gifUrl && currentSlug !== "default_stretch") {
-          setUseFallback(true);
-        } else if (!gifUrl && !isApiLoading) {
-          setHasError(true);
-        }
-      };
-    }
-  }, [requestedSlug, currentSlug, gifUrl, isApiLoading]);
+    setActualTotalFrames(12);
+    setIsFullyBroken(false);
+  }, [requestedSlug, gifUrl]);
 
   useEffect(() => {
     let interval: ReturnType<typeof setInterval>;
 
-    if (isLoaded && isPlaying && !hasError) {
+    if (isLoaded && isPlaying && !hasError && !isFullyBroken) {
       if (imageUrls.length > 1) {
         // Run animation for multi-image API responses (cross-fading slowly)
         interval = setInterval(() => {
@@ -289,7 +280,10 @@ export default function StretchAnimationPlayer({
       } else if (!gifUrl) {
         // Run local frame sequence
         interval = setInterval(() => {
-          setFrame(prev => (prev % totalFrames) + 1);
+          setFrame(prev => {
+             // If we hit the boundaries of the discovered frames
+             return (prev % effectiveTotalFrames) + 1;
+          });
         }, 1000 / fps);
       } else {
         setFrame(1);
@@ -299,7 +293,7 @@ export default function StretchAnimationPlayer({
     }
 
     return () => clearInterval(interval);
-  }, [isLoaded, isPlaying, hasError, gifUrl, imageUrls]);
+  }, [isLoaded, isPlaying, hasError, gifUrl, imageUrls, effectiveTotalFrames, isFullyBroken]);
 
   const frameSrc = !gifUrl ? `${framesBasePath}/frame_${String(frame).padStart(3, "0")}.webp` : "";
   const dynamicGifUrl = imageUrls.length > 0 ? imageUrls[frame - 1] : gifUrl;
@@ -541,11 +535,16 @@ export default function StretchAnimationPlayer({
                   console.warn("GIF specifically failed to load, falling back...", dynamicGifUrl);
                   setGifUrl(null);
                   setImageUrls([]);
+                  setUseFallback(true);
                 }}
                 className={`w-full h-full object-contain mix-blend-multiply transition-opacity duration-300 ${isLoaded ? 'opacity-100' : 'opacity-0'}`}
               />
             )}
           </>
+        ) : isFullyBroken ? (
+          <div className="w-full h-full flex items-center justify-center bg-charcoal/5 rounded-3xl">
+             <Activity className="w-16 h-16 text-charcoal/20" strokeWidth={1} />
+          </div>
         ) : (
           <motion.img
             key={isPreparing ? 'prep' : frameSrc}
@@ -560,14 +559,18 @@ export default function StretchAnimationPlayer({
               setMediaStats({ w: e.currentTarget.naturalWidth, h: e.currentTarget.naturalHeight });
             }}
             onError={() => {
-              console.warn("Animation image load failed for:", currentSlug);
+              console.warn("Animation image load failed for:", currentSlug, "frame:", frame, "src:", isPreparing ? `${framesBasePath}/frame_001.webp` : frameSrc);
               if (frame > 1) {
-                setFrame(1); // Handle missing end-frames by looping back early
+                // If we miss a middle/end frame, just loop what we do have
+                setActualTotalFrames(frame - 1);
+                setFrame(1);
               } else if (currentSlug !== "default_stretch") {
                 setUseFallback(true);
               } else {
-                setHasError(true);
-                setIsLoaded(true); // Stop loader showing on error
+                // The ultimate fallback `default_stretch` ALSO failed
+                console.error("Ultimate fallback failed to load. Halting animation.");
+                setIsLoaded(true); 
+                setIsFullyBroken(true);
               }
             }}
             className={`w-full h-full object-contain mix-blend-multiply transition-opacity duration-300 ${isLoaded ? 'opacity-100' : 'opacity-0'}`}

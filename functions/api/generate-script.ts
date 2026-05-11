@@ -12,12 +12,15 @@ export async function onRequestPost(context: any) {
       return errorResponse("GROQ_API_KEY is not configured", 500);
     }
 
+    const baseURL = env.GROQ_BASE_URL;
+
     const result = await generateRoutineScript(
       apiKey,
       exercises,
       goal,
       creatorMode,
-      reqContext
+      reqContext,
+      baseURL
     );
 
     return jsonResponse(result);

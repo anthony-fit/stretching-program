@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react';
 
 export function EzoicVideo() {
   const containerRef = useRef<HTMLDivElement>(null);
+  const id = useRef(Math.random().toString(36).substring(2, 9)).current;
 
   useEffect(() => {
     const el = containerRef.current;
@@ -17,9 +18,9 @@ export function EzoicVideo() {
     }
     
     // Check if element is already registered (handles React Strict Mode double-mounts)
-    const isRegistered = w.openVideoPlayers.some((p: any) => p.target === el);
+    const isRegistered = w.openVideoPlayers.some((p: any) => p.target === `ezoic-player-${id}`);
     if (!isRegistered) {
-      w.openVideoPlayers.push({ target: el });
+      w.openVideoPlayers.push({ target: `ezoic-player-${id}` });
     }
 
     if (!document.querySelector('script[src="https://open.video/video.js"]')) {
@@ -35,7 +36,7 @@ export function EzoicVideo() {
     // Cleanup on unmount/route transitions to prevent memory leaks
     return () => {
       if (Array.isArray(w.openVideoPlayers)) {
-         w.openVideoPlayers = w.openVideoPlayers.filter((p: any) => p.target !== el);
+         w.openVideoPlayers = w.openVideoPlayers.filter((p: any) => p.target !== `ezoic-player-${id}`);
       }
       el.removeAttribute('data-initialized');
     };
@@ -46,6 +47,7 @@ export function EzoicVideo() {
       className="w-full aspect-video rounded-xl overflow-hidden bg-charcoal/5 flex items-center justify-center relative border border-charcoal/10"
     >
       <div 
+        id={`ezoic-player-${id}`}
         ref={containerRef}
         className="w-full h-full [&>iframe]:w-full [&>iframe]:h-full [&>div]:w-full [&>div]:h-full"
       />

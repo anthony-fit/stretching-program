@@ -51,9 +51,9 @@ function LiveDemoHero() {
     }
     
     // Check if element is already registered (handles React Strict Mode double-mounts)
-    const isRegistered = w.openVideoPlayers.some((p: any) => p.target === el);
+    const isRegistered = w.openVideoPlayers.some((p: any) => p.target === 'home-ezoic-player');
     if (!isRegistered) {
-      w.openVideoPlayers.push({ target: el });
+      w.openVideoPlayers.push({ target: 'home-ezoic-player' });
     }
 
     if (!document.querySelector('script[src="https://open.video/video.js"]')) {
@@ -69,7 +69,7 @@ function LiveDemoHero() {
     // Cleanup on unmount/route transitions to prevent memory leaks
     return () => {
       if (Array.isArray(w.openVideoPlayers)) {
-         w.openVideoPlayers = w.openVideoPlayers.filter((p: any) => p.target !== el);
+         w.openVideoPlayers = w.openVideoPlayers.filter((p: any) => p.target !== 'home-ezoic-player');
       }
       el.removeAttribute('data-initialized');
     };
@@ -210,9 +210,9 @@ function LiveDemoHero() {
 
              {/* Dynamic Video Target */}
              <div 
+               id="home-ezoic-player"
                ref={videoContainerRef}
-               className="absolute inset-0 w-full h-full z-10 [&>iframe]:w-full [&>iframe]:h-full [&>div]:w-full [&>div]:h-full transition-opacity duration-1000 ease-in-out opacity-0 group-hover:opacity-100 player-loaded:opacity-100"
-               style={{ opacity: 1 }} // Fallback in case of no loaded state class initially
+               className="absolute inset-0 w-full h-full z-50 [&>iframe]:w-full [&>iframe]:h-full [&>div]:w-full [&>div]:h-full"
              />
              
              {/* OS UI Overlays */}
