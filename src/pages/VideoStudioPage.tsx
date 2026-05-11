@@ -1026,10 +1026,6 @@ export default function VideoStudioPage() {
           audioContextRef.current = new AudioContextClass();
           audioDestinationRef.current =
             audioContextRef.current.createMediaStreamDestination();
-          console.debug(
-            "[AudioEngine] Context initialized. State:",
-            audioContextRef.current.state,
-          );
         }
       }
 
@@ -1064,10 +1060,6 @@ export default function VideoStudioPage() {
                 audioDestinationRef.current,
               );
             }
-            console.debug(
-              "[AudioEngine] Soundtrack connected via GainNode. Initial Gain:",
-              soundtrackGainNodeRef.current.gain.value,
-            );
           } catch (e) {
             console.warn(
               "[AudioEngine] Failed to connect soundtrack source:",
@@ -1092,7 +1084,7 @@ export default function VideoStudioPage() {
       ) {
         audioContextRef.current
           .close()
-          .catch((e) => console.error("Error closing AudioContext:", e));
+          .catch((e) => console.error("[AudioEngine] Error closing AudioContext:", e));
       }
     };
   }, []);
@@ -1533,7 +1525,7 @@ export default function VideoStudioPage() {
         });
         setExercises(processed);
       } catch (error) {
-        console.error("Failed to load exercises:", error);
+        console.error("[PIPELINE] Failed to load exercises:", error);
 
         setExercises(
           EXERCISE_DATABASE.map((ex) => ({
@@ -1748,7 +1740,7 @@ export default function VideoStudioPage() {
         }
       }
     } catch (e) {
-      console.warn("Failed to restore autosave", e);
+      console.warn("[PIPELINE] Failed to restore autosave:", e);
     } finally {
       setRestored(true);
     }
@@ -1830,7 +1822,7 @@ export default function VideoStudioPage() {
         };
         localStorage.setItem(AUTOSAVE_KEY, JSON.stringify(projectSave));
       } catch (e) {
-        console.warn("Autosave failed. Quota exceeded or error:", e);
+        console.warn("[PIPELINE] Autosave failed:", e);
       }
     };
 
@@ -2333,7 +2325,7 @@ export default function VideoStudioPage() {
         );
         setTimeout(() => setGenerationMessage(null), 5000);
       } catch (fallbackError) {
-        console.error("Local fallback also failed:", fallbackError);
+        console.error("[FALLBACK] Local fallback also failed:", fallbackError);
         showNotification("Initialization Failed. Systems Offline.");
         setIsInitializingProtocol(false);
         setGenerationMessage(null);
@@ -2376,7 +2368,7 @@ export default function VideoStudioPage() {
         );
         setAiScript(script);
       } catch (error) {
-        console.error("AI script generation failed:", error);
+        console.error("[AI] AI script generation failed:", error);
       } finally {
         setIsGeneratingAi(false);
         setActiveTab("script");
@@ -2507,7 +2499,7 @@ export default function VideoStudioPage() {
           showNotification(`AI Video Generation started for ${exerciseName}.`);
         }
       } catch (error) {
-        console.error("Video generation failed:", error);
+        console.error("[EXPORT] Video generation failed:", error);
         showNotification("Failed to start AI Video Generation.");
       } finally {
         setIsGeneratingVideo((prev) => ({ ...prev, [instanceId]: false }));
@@ -2556,7 +2548,7 @@ export default function VideoStudioPage() {
       setSocialCaptions(socials);
       setShowSEOSection(true);
     } catch (e) {
-      console.error("Failed to generate SEO metadata", e);
+      console.error("[EXPORT] Failed to generate SEO metadata:", e);
     } finally {
       setIsGeneratingSEO(false);
     }
@@ -2719,7 +2711,7 @@ export default function VideoStudioPage() {
           if (activeBlueprintIdRef.current)
             recordCompositionExport(activeBlueprintIdRef.current);
         })
-        .catch((e) => console.error("Could not lazily track export", e));
+        .catch((e) => console.error("[EXPORT] Could not lazily track export", e));
     }
 
     let baseFileName =
@@ -2809,7 +2801,6 @@ export default function VideoStudioPage() {
       return;
     }
 
-    console.debug("[Export Status] Preloading started...");
     setExportState("preparing");
     setRenderProgress(0);
     setIsRecording(true);
@@ -2844,7 +2835,6 @@ export default function VideoStudioPage() {
       console.warn("[Export Status] Preloading encountered an error:", error);
     }
 
-    console.debug("[Export Status] Preloading complete. Starting recording...");
     setExportState("rendering");
 
     const exportFPS = isMobile ? 24 : 30;
@@ -2946,16 +2936,10 @@ export default function VideoStudioPage() {
             : selectedMimeType.includes("webm")
               ? "WebM"
               : "Native Mode";
-          console.debug(
-            `[EXPORT] ${codecName} supported: Attached fallback MIME (${selectedMimeType})`,
-          );
           if (
             audioDestinationRef.current &&
             audioDestinationRef.current.stream.getAudioTracks().length > 0
           ) {
-            console.debug(
-              `[EXPORT] Audio track attached to export stream (Universal compatibility mode enabled).`,
-            );
           }
           break; // Successfully initialized
         }
@@ -2981,7 +2965,6 @@ export default function VideoStudioPage() {
     };
 
     mr.onstop = () => {
-      console.debug("[Export Status] Finalizing recording...");
       if (exportRafRef.current) {
         clearTimeout(exportRafRef.current);
         exportRafRef.current = null;
@@ -2993,7 +2976,6 @@ export default function VideoStudioPage() {
         // Clear all arrays, do not prompt download
         recordedChunksRef.current = [];
         setExportState("idle");
-        console.debug("[Export Status] Export gracefully cancelled.");
         return;
       }
 
@@ -3030,15 +3012,10 @@ export default function VideoStudioPage() {
             );
           }
 
-          console.debug(
-            "[Integrity Checks] Master composition verified gracefully.",
-          );
         } catch (e) {
-          console.debug("[Integrity Checks] Check skipped gracefully.");
         }
 
         recordedChunksRef.current = [];
-        console.debug("[Export Status] Export packaging complete.");
         setExportState("ready");
       } catch (err) {
         console.error("[Export Status] Finalize error:", err);

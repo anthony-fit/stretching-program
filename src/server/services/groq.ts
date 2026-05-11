@@ -35,28 +35,32 @@ export async function generateCompositionBlueprintViaLLM(
     Here is the catalog of available explicit exercises we can map to:
     ${exerciseDatabaseSummary}
 
-    Output strictly an array of JSON objects representing candidate composition blueprints.
-    Each candidate MUST follow this structure:
-    [{
-      "title": "string",
-      "hook": "string",
-      "pacingArc": "steady" | "build-up" | "intervals" | "cool-down" | "waves",
-      "soundtrackProfile": "cinematic" | "upbeat" | "ambient" | "lofi" | "heavy",
-      "transitionRhythm": "fast" | "medium" | "slow" | "mixed",
-      "subtitleCadence": "rapid" | "standard" | "relaxed",
-      "reasoning": "string",
-      "scenes": [
+    Output strictly a JSON object containing an array of candidate composition blueprints.
+    The JSON object MUST follow this structure:
+    {
+      "blueprints": [
         {
-          "exerciseId": "string (MUST perfectly match one of the explicit exercise IDs in the catalog)",
-          "duration": "number",
-          "script": "string",
-          "cameraBehavior": "static" | "slow-zoom" | "pan" | "dynamic",
-          "energyLevel": "low" | "medium" | "high" | "peak"
+          "title": "string",
+          "hook": "string",
+          "pacingArc": "steady" | "build-up" | "intervals" | "cool-down" | "waves",
+          "soundtrackProfile": "cinematic" | "upbeat" | "ambient" | "lofi" | "heavy",
+          "transitionRhythm": "fast" | "medium" | "slow" | "mixed",
+          "subtitleCadence": "rapid" | "standard" | "relaxed",
+          "reasoning": "string",
+          "scenes": [
+            {
+              "exerciseId": "string (MUST perfectly match one of the explicit exercise IDs in the catalog)",
+              "duration": "number",
+              "script": "string",
+              "cameraBehavior": "static" | "slow-zoom" | "pan" | "dynamic",
+              "energyLevel": "low" | "medium" | "high" | "peak"
+            }
+          ]
         }
       ]
-    }]
+    }
 
-    Output strictly as JSON array.
+    Output strictly as JSON.
   `;
 
   const chatCompletion = await groq.chat.completions.create({
@@ -103,7 +107,7 @@ export async function generateCompositionBlueprintViaLLM(
       );
     }
   } catch (e) {
-    console.error("LLM PARSE ERROR:", e);
+    console.error("[AI] LLM PARSE ERROR:", e);
     return [];
   }
 }
@@ -133,8 +137,12 @@ export async function generateRoutineScript(
 
     Return ONLY raw JSON.
     Do not use markdown.
-    Return an array of:
-    { "exerciseName": "string", "script": "string" }
+    Return a JSON object containing an array under the "scripts" key:
+    {
+      "scripts": [
+        { "exerciseName": "string", "script": "string" }
+      ]
+    }
   `;
 
   const chatCompletion = await groq.chat.completions.create({
@@ -152,16 +160,23 @@ export async function generateRoutineScript(
     model: "llama-3.3-70b-versatile",
     temperature: 0.7,
     max_tokens: 2000,
+    response_format: { type: "json_object" },
   });
 
-  const text = chatCompletion.choices[0]?.message?.content || "[]";
+  const text = chatCompletion.choices[0]?.message?.content || "{}";
 
   try {
     const parsed = JSON.parse(text);
 
-    const normalized = Array.isArray(parsed) ? parsed : [parsed];
+    if (parsed.scripts && Array.isArray(parsed.scripts)) {
+      return parsed.scripts;
+    }
+    
+    // Fallbacks
+    if (parsed.data && Array.isArray(parsed.data)) return parsed.data;
+    if (Array.isArray(parsed)) return parsed;
 
-    return normalized;
+    return [];
   } catch (e) {
     console.error("[GROQ JSON PARSE FAILED]");
     console.error(e);
@@ -225,7 +240,7 @@ export async function classifyWorkoutIntentViaLLM(
   try {
     return JSON.parse(text);
   } catch (e) {
-    console.error("LLM INTENT PARSE ERROR:", e);
+    console.error("[AI] LLM INTENT PARSE ERROR:", e);
     return null;
   }
 }
@@ -277,6 +292,7 @@ export async function generateSEOMetadata(
     model: "llama-3.3-70b-versatile",
     temperature: 0.7,
     max_tokens: 1000,
+    response_format: { type: "json_object" },
   });
 
   const text = chatCompletion.choices[0]?.message?.content || "{}";
@@ -310,7 +326,8 @@ export async function generateSocialCaptions(
     Creator Mode: ${creatorMode || "standard"}
     Exercises: ${exercises.map((ex) => ex.name).join(", ")}
 
-    Return JSON with: caption, hashtags, hooks.
+    Return JSON strictly conforming to this object with no markdown:
+    { "caption": "string", "hashtags": ["string"], "hooks": ["string"] }
   `;
 
   const chatCompletion = await groq.chat.completions.create({
@@ -327,6 +344,7 @@ export async function generateSocialCaptions(
     model: "llama-3.3-70b-versatile",
     temperature: 0.7,
     max_tokens: 1000,
+    response_format: { type: "json_object" },
   });
 
   const text = chatCompletion.choices[0]?.message?.content || "{}";

@@ -96,7 +96,7 @@ function AICoachPrompt() {
         }
       }
     } catch (e) {
-      console.error("Failed to load recovery memory", e);
+      console.error("[MEMORY] Failed to load recovery memory", e);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -171,7 +171,7 @@ function AICoachPrompt() {
           }),
         );
       } catch (e) {
-        console.error("Failed to save memory", e);
+        console.error("[MEMORY] Failed to save memory", e);
       }
 
       let msgIdx = 0;
