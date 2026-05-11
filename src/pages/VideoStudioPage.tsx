@@ -342,12 +342,15 @@ const SOUNDTRACKS = {
 
 type CreatorModeId =
   | "tiktok"
-  | "reel"
   | "shorts"
+  | "reels"
+  | "landscape"
+  | "square"
   | "wellness"
   | "explainer"
   | "countdown"
-  | "faceless";
+  | "faceless"
+  | "reel";
 
 interface CreatorMode {
   id: CreatorModeId;
@@ -369,7 +372,7 @@ interface CreatorMode {
 const CREATOR_MODES: CreatorMode[] = [
   {
     id: "tiktok",
-    label: "TikTok Hook",
+    label: "TikTok Vertical",
     description: "Punchy intervals with high-engagement subtitles",
     pacing: "energetic",
     soundtrack: "energy",
@@ -396,6 +399,51 @@ const CREATOR_MODES: CreatorMode[] = [
       style: "classic",
     },
     hookPrefix: "DAILY RESET:",
+  },
+  {
+    id: "reels",
+    label: "Instagram Reels",
+    description: "Visually driven with central focus",
+    pacing: "energetic",
+    soundtrack: "energy",
+    framing: "fit",
+    subtitles: {
+      enabled: true,
+      size: "medium",
+      position: "bottom",
+      style: "minimal",
+    },
+    hookPrefix: "TRY THIS:",
+  },
+  {
+    id: "landscape",
+    label: "Standard Landscape",
+    description: "Classic wide format for deeper value",
+    pacing: "natural",
+    soundtrack: "focus",
+    framing: "cinematic",
+    subtitles: {
+      enabled: true,
+      size: "small",
+      position: "bottom",
+      style: "classic",
+    },
+    hookPrefix: "GUIDED:",
+  },
+  {
+    id: "square",
+    label: "Square Preview",
+    description: "1:1 ratio for feed adaptability",
+    pacing: "natural",
+    soundtrack: "minimal",
+    framing: "fit",
+    subtitles: {
+      enabled: true,
+      size: "medium",
+      position: "bottom",
+      style: "bold",
+    },
+    hookPrefix: "QUICK FLOW:",
   },
   {
     id: "wellness",
@@ -677,7 +725,7 @@ export default function VideoStudioPage() {
   >("classic");
 
   const applyCreatorMode = useCallback(
-    (modeId: CreatorModeId) => {
+    (modeId: CreatorModeId, currentConfig?: any) => {
       const mode = CREATOR_MODES.find((m) => m.id === modeId);
       if (!mode) return;
 
@@ -689,10 +737,26 @@ export default function VideoStudioPage() {
       setSubtitleSize(mode.subtitles.size);
       setSubtitlePosition(mode.subtitles.position);
       setSubtitleStyle(mode.subtitles.style);
+      
+      // Auto-set aspect ratio based on creator mode
+      if (["tiktok", "shorts", "reels", "wellness", "explainer", "countdown", "faceless", "reel"].includes(modeId)) {
+        setAspectRatio("9:16");
+        console.log(`[SOCIAL] Vertical export mode enabled (${modeId})`);
+      } else if (modeId === "landscape") {
+        setAspectRatio("16:9");
+        console.log(`[SOCIAL] Landscape export mode enabled`);
+      } else if (modeId === "square") {
+        setAspectRatio("1:1");
+        console.log(`[SOCIAL] Square export mode enabled`);
+      }
 
       // Auto-generate hook if empty
-      if (!hookTitle && storyboard.length > 0) {
-        setHookTitle(`${mode.hookPrefix} ${storyboard[0].name.toUpperCase()}`);
+      if (!hookTitle && storyboard.length > 0 && currentConfig) {
+        // --- Social & Viral Automation Layer ---
+        import("../lib/socialExportEngine").then(({ generateHookOverlay }) => {
+          setHookTitle(generateHookOverlay(currentConfig));
+          console.log(`[SOCIAL] Hook overlay injected: ${mode.hookPrefix}`);
+        });
       }
     },
     [storyboard, hookTitle],
@@ -2038,6 +2102,14 @@ export default function VideoStudioPage() {
       if (memoryResult.intelligenceLogs)
         gatheredIntelligence.push(...memoryResult.intelligenceLogs);
 
+      // --- Social & Viral Automation Layer: Engagement Pacing Modifier ---
+      const { applySocialPacing } = await import("../lib/socialExportEngine");
+      if (config.creatorMode !== "landscape") {
+        generatedItems = applySocialPacing(generatedItems, config.creatorMode);
+        gatheredIntelligence.push("Viral pacing modifier active");
+        console.log(`[SOCIAL] Viral pacing modifier active for preset: ${config.creatorMode}`);
+      }
+      
       // Record session tracking
       recordCompletedSession(generatedItems, config);
       // ----------------------------------------
@@ -2059,7 +2131,7 @@ export default function VideoStudioPage() {
       });
 
       // Apply selected creator mode defaults
-      applyCreatorMode(wizardConfig.creatorMode);
+      applyCreatorMode(wizardConfig.creatorMode, wizardConfig);
 
       console.log("[PIPELINE] Valid storyboard hydrated");
       setShowWizard(false);
@@ -2202,6 +2274,14 @@ export default function VideoStudioPage() {
         if (memoryResult.intelligenceLogs)
           gatheredIntelligence.push(...memoryResult.intelligenceLogs);
 
+        // --- Social & Viral Automation Layer: Engagement Pacing Modifier ---
+        const { applySocialPacing } = await import("../lib/socialExportEngine");
+        if (config.creatorMode !== "landscape") {
+          generatedItems = applySocialPacing(generatedItems, config.creatorMode);
+          gatheredIntelligence.push("Viral pacing modifier active");
+          console.log(`[SOCIAL] Viral pacing modifier active for preset: ${config.creatorMode}`);
+        }
+
         // Record session tracking
         recordCompletedSession(generatedItems, config);
         // ----------------------------------------
@@ -2240,7 +2320,7 @@ export default function VideoStudioPage() {
           reasoning: "Generated without AI cloud latency.",
         });
 
-        applyCreatorMode(wizardConfig.creatorMode);
+        applyCreatorMode(wizardConfig.creatorMode, wizardConfig);
         setShowWizard(false);
         setIsInitializingProtocol(false);
         Orchestrator.seekToScene(0, 0);
@@ -2379,7 +2459,7 @@ export default function VideoStudioPage() {
         template.type === "Mobility" || template.type === "Stretching"
           ? "wellness"
           : "shorts";
-      applyCreatorMode(templateCreatorMode);
+      applyCreatorMode(templateCreatorMode, template);
 
       setWizardConfig((prev) => ({
         ...prev,
@@ -2780,6 +2860,14 @@ export default function VideoStudioPage() {
       .replace(/[^a-z0-9-]/g, "-")
       .replace(/-+/g, "-")
       .substring(0, 50);
+
+    // --- Social & Viral Automation Layer: Thumbnail Logic ---
+    import("../lib/socialExportEngine").then(({ selectSmartThumbnailFrame }) => {
+      const thumb = selectSmartThumbnailFrame(storyboard);
+      if (thumb) {
+        console.log(`[SOCIAL] Thumbnail frame selected: ${thumb.name}`);
+      }
+    });
 
     const scaleFactor = isMobile ? 0.75 : 1.5; // Downscale slightly for mobile, upscale for desktop
     let cW = 720 * scaleFactor,
@@ -3299,6 +3387,43 @@ export default function VideoStudioPage() {
           ctx.fillStyle = "rgba(234, 179, 8, 0.3)";
           ctx.fillRect(0, 0, cW * totalProgress, 6);
         }
+
+        // --- Social & Viral Automation Layer: CTA Engine ---
+        const totalDuration = state.storyboard.reduce((a, b) => a + (b.duration || 0), 0);
+        const remainingGlobal = totalDuration - state.globalTime;
+        
+        let ctaText = "Generate your training program";
+        let ctaStartTime = 5;
+        if (state.activeCreatorMode === "tiktok" || state.activeCreatorMode === "square") { ctaText = "Generate your own routine"; ctaStartTime = 5; }
+        else if (state.activeCreatorMode === "shorts") { ctaText = "AI-powered mobility orchestration"; ctaStartTime = 5; }
+        else if (state.activeCreatorMode === "reels") { ctaText = "Build your recovery session"; ctaStartTime = 4; }
+        else if (state.activeCreatorMode === "landscape") { ctaText = "Adaptive recovery engine"; ctaStartTime = 8; }
+        
+        if (state.activeCreatorMode !== "landscape" && remainingGlobal <= ctaStartTime && remainingGlobal >= 0) {
+          ctx.globalAlpha = alpha;
+          const ctaAlpha = Math.min(1, (ctaStartTime - remainingGlobal) / 0.5);
+          ctx.globalAlpha = ctaAlpha * alpha;
+          
+          ctx.font = "bold 45px sans-serif";
+          const measure = ctx.measureText(ctaText);
+          const cW_cta = measure.width + 60;
+          const cH_cta = 80;
+          
+          const px = cW / 2;
+          const py = cH / 2 + 150;
+          
+          ctx.beginPath();
+          ctx.fillStyle = "rgba(10, 10, 10, 0.85)";
+          ctx.roundRect(px - cW_cta/2, py - cH_cta/2, cW_cta, cH_cta, 40);
+          ctx.fill();
+          
+          ctx.fillStyle = "#FFE06E";
+          ctx.textAlign = "center";
+          ctx.textBaseline = "middle";
+          ctx.fillText(ctaText, px, py);
+          ctx.globalAlpha = alpha;
+        }
+
       };
 
       if (isTransitioning) {
@@ -6172,7 +6297,7 @@ export default function VideoStudioPage() {
                             {CREATOR_MODES.map((mode) => (
                               <button
                                 key={mode.id}
-                                onClick={() => applyCreatorMode(mode.id)}
+                                onClick={() => applyCreatorMode(mode.id, wizardConfig)}
                                 className={`text-left p-4 rounded-3xl border transition-all relative overflow-hidden group ${activeCreatorMode === mode.id ? "border-gold bg-gold/10 ring-1 ring-gold/20" : "border-white/5 bg-white/[0.02] hover:bg-white/[0.05] hover:border-white/10"}`}
                               >
                                 <div className="flex items-center justify-between mb-1.5">
