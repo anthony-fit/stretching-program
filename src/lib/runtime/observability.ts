@@ -35,6 +35,8 @@ class ObservabilityEngine {
     rafJitter: 0 // MS variance in requestAnimationFrame delivery
   };
 
+  private observer: PerformanceObserver | null = null;
+
   public start() {
     if (this.isObserving || typeof window === 'undefined') return;
     this.isObserving = true;
@@ -48,6 +50,10 @@ class ObservabilityEngine {
   public stop() {
     this.isObserving = false;
     if (this.rafId) cancelAnimationFrame(this.rafId);
+    if (this.observer) {
+        this.observer.disconnect();
+        this.observer = null;
+    }
   }
 
   public trackExportStall() {
@@ -102,7 +108,7 @@ class ObservabilityEngine {
   private initLongTaskObserver() {
     if (!('PerformanceObserver' in window)) return;
     try {
-      const observer = new PerformanceObserver((list) => {
+      this.observer = new PerformanceObserver((list) => {
         for (const entry of list.getEntries()) {
           this.metrics.longTasksCount++;
           // A long task > 100ms indicates dropped frames or blocked main thread
@@ -113,7 +119,7 @@ class ObservabilityEngine {
           }
         }
       });
-      observer.observe({ type: 'longtask', buffered: true });
+      this.observer.observe({ type: 'longtask', buffered: true });
     } catch (e) {
       // Browser environment may not support longtask observation
     }

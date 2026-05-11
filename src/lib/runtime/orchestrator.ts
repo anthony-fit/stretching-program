@@ -71,12 +71,12 @@ class OrchestrationEngine {
 
   public subscribeTime(callback: TimeSubscription) {
     this.timeSubscribers.add(callback);
-    return () => this.timeSubscribers.delete(callback);
+    return () => { this.timeSubscribers.delete(callback); };
   }
 
   public subscribeState(callback: StateSubscription) {
     this.stateSubscribers.add(callback);
-    return () => this.stateSubscribers.delete(callback);
+    return () => { this.stateSubscribers.delete(callback); };
   }
 
   private calculateTimeState(gTime: number): OrchestratorTimeState {
@@ -247,17 +247,30 @@ class OrchestrationEngine {
 export const Orchestrator = new OrchestrationEngine();
 
 export function useOrchestrator() {
-  const [timeState, setTimeState] = useState<OrchestratorTimeState>(Orchestrator.timeState);
   const [playbackState, setPlaybackState] = useState<PlaybackState>(Orchestrator.currentState);
+  const [activeSceneIndex, setActiveSceneIndex] = useState(Orchestrator.timeState.activeSceneIndex);
 
   useEffect(() => {
-    const unsubTime = Orchestrator.subscribeTime(setTimeState);
     const unsubState = Orchestrator.subscribeState(setPlaybackState);
+    let lastIndex = Orchestrator.timeState.activeSceneIndex;
+    const unsubTime = Orchestrator.subscribeTime((state) => {
+      if (state.activeSceneIndex !== lastIndex) {
+        lastIndex = state.activeSceneIndex;
+        setActiveSceneIndex(state.activeSceneIndex);
+      }
+    });
+
     return () => {
-      unsubTime();
       unsubState();
+      unsubTime();
     };
   }, []);
 
-  return { ...timeState, playbackState, totalDuration: Orchestrator.getTotalDuration() };
+  return { activeSceneIndex, playbackState, totalDuration: Orchestrator.getTotalDuration() };
+}
+
+export function useOrchestratorTime() {
+  const [timeState, setTimeState] = useState<OrchestratorTimeState>(Orchestrator.timeState);
+  useEffect(() => Orchestrator.subscribeTime(setTimeState), []);
+  return timeState;
 }

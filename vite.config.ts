@@ -9,39 +9,25 @@ const require = createRequire(import.meta.url);
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-export default defineConfig(() => {
+export default defineConfig(({ command, mode }) => {
   return {
     plugins: [
       react(),
       tailwindcss()
     ],
+    server: {
+      hmr: process.env.DISABLE_HMR === 'true' ? false : {
+        overlay: false
+      }
+    },
     resolve: {
       alias: {
         '@': path.resolve(__dirname, '.'),
       },
+      dedupe: ['react', 'react-dom']
     },
     build: {
-      rollupOptions: {
-        output: {
-          manualChunks(id) {
-            if (id.includes('node_modules')) {
-              if (id.includes('motion') || id.includes('framer-motion')) {
-                return 'vendor-motion';
-              }
-              if (id.includes('lucide-react')) {
-                return 'vendor-lucide';
-              }
-              if (id.includes('ffmpeg') || id.includes('lamejs')) {
-                 return 'vendor-media';
-              }
-              if (id.includes('react') || id.includes('react-dom') || id.includes('react-router-dom')) {
-                return 'vendor-react';
-              }
-              return 'vendor'; // all other third party modules
-            }
-          }
-        }
-      }
+      sourcemap: false
     }
   };
 });

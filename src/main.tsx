@@ -4,7 +4,8 @@ import { BrowserRouter } from 'react-router-dom';
 import App from './App.tsx';
 import './index.css';
 
-if ("serviceWorker" in navigator) {
+if ("serviceWorker" in navigator && !(window as any).__swRegistered) {
+  (window as any).__swRegistered = true;
   navigator.serviceWorker.register("/sw.js")
     .then(() => console.log("SW registered"));
 }

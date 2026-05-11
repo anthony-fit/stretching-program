@@ -7,7 +7,7 @@ import React, {
 } from "react";
 import { Link } from "react-router-dom";
 import { motion, AnimatePresence } from "motion/react";
-import { Orchestrator, useOrchestrator } from "../lib/runtime/orchestrator";
+import { Orchestrator, useOrchestrator, useOrchestratorTime } from "../lib/runtime/orchestrator";
 import { RuntimeObserver } from "../lib/runtime/observability";
 import {
   Play,
@@ -55,6 +55,154 @@ import {
   Music,
   Share2,
 } from "lucide-react";
+
+const TimeObserver = React.memo(({ render }: { render: (timeState: { globalTime: number, localTime: number, activeSceneIndex: number }) => React.ReactNode }) => {
+  const timeState = useOrchestratorTime();
+  return <>{render(timeState)}</>;
+});
+
+const PlaybackControlsTimeObserver = React.memo(({ storyboard }: { storyboard: any[] }) => {
+  const { globalTime } = useOrchestratorTime();
+  return (
+                <div className="space-y-1">
+                  <div className="text-[9px] md:text-[10px] font-mono text-cream/40 uppercase tabular-nums">
+                    {Math.floor((globalTime || 0) / 60)}:
+                    {Math.floor((globalTime || 0) % 60)
+                      .toString()
+                      .padStart(2, "0")}{" "}
+                    / {Math.ceil(storyboard.reduce((acc, curr) => acc + (curr.duration || 0), 0))}
+                    s
+                  </div>
+                  <div
+                    className="w-24 md:w-48 h-2 bg-cream/10 rounded-full relative cursor-ew-resize group"
+                    onPointerDown={(e) => {
+                      const rect = e.currentTarget.getBoundingClientRect();
+                      const updateSeek = (clientX: number) => {
+                         const pos = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
+                         const totalDur = storyboard.reduce((acc, curr) => acc + (curr.duration || 0), 0);
+                         Orchestrator.seek(pos * totalDur);
+                      };
+                      updateSeek(e.clientX);
+
+                      const onMove = (moveEv: PointerEvent) => {
+                         updateSeek(moveEv.clientX);
+                      };
+                      const onUp = () => {
+                         window.removeEventListener('pointermove', onMove);
+                         window.removeEventListener('pointerup', onUp);
+                      };
+                      window.addEventListener('pointermove', onMove);
+                      window.addEventListener('pointerup', onUp);
+                    }}
+                  >
+                    <div className="absolute top-0 bottom-0 left-0 bg-gold/30 transition-all duration-75 group-hover:bg-gold/50" style={{ width: `${storyboard.length ? Math.min(100, (globalTime / storyboard.reduce((acc, c) => acc + (c.duration || 0), 0)) * 100) : 0}%` }} />
+                    <div className="absolute top-0 bottom-0 left-0 bg-gold transition-all duration-75" style={{ width: `${storyboard.length ? Math.min(100, (globalTime / storyboard.reduce((acc, c) => acc + (c.duration || 0), 0)) * 100) : 0}%` }} />
+                    <div className="absolute top-1/2 -mt-1 w-2 h-2 rounded-full bg-white shadow-lg opacity-0 group-hover:opacity-100 transition-opacity" style={{ left: `calc(${storyboard.length ? Math.min(100, (globalTime / storyboard.reduce((acc, c) => acc + (c.duration || 0), 0)) * 100) : 0}% - 4px)` }} />
+                  </div>
+                </div>
+  );
+});
+
+const SubtitleOverlay = React.memo(({ subtitlesEnabled, storyboard, activeItemIndex, aiScript, wizardConfig, currentProgression, subtitlePosition, subtitleStyle, subtitleSize, atmosphere, calculateReadiness, COACH_PROFILES }: any) => {
+  const { localTime: currentTime } = useOrchestratorTime();
+  const currentSubtitle = useMemo(() => {
+    if (!subtitlesEnabled || storyboard.length === 0 || !aiScript) return null;
+    const activeItem = storyboard[activeItemIndex];
+    if (!activeItem) return null;
+
+    const sceneScript = aiScript.find(
+      (s: any) => s.exerciseName?.trim().toLowerCase() === activeItem.name?.trim().toLowerCase(),
+    );
+    if (!sceneScript?.script) return null;
+
+    const scriptText = sceneScript.script;
+    const duration = activeItem.duration;
+
+    const words = scriptText.split(/\s+/).filter(Boolean);
+    if (words.length === 0) return null;
+
+    const chunks = [];
+    let currentChunk = [];
+
+    for (let i = 0; i < words.length; i++) {
+      currentChunk.push(words[i]);
+      const isPunctuation = /[,.?!]/.test(words[i]);
+      if (
+        (currentChunk.length >= 4 && isPunctuation) ||
+        currentChunk.length >= 7
+      ) {
+        chunks.push({
+          text: currentChunk.join(" "),
+          wordCount: currentChunk.length,
+        });
+        currentChunk = [];
+      }
+    }
+    if (currentChunk.length > 0) {
+      chunks.push({
+        text: currentChunk.join(" "),
+        wordCount: currentChunk.length,
+      });
+    }
+
+    let currentStart = 0;
+    const totalWords = words.length;
+    for (const chunk of chunks) {
+      const chunkDuration = (chunk.wordCount / totalWords) * duration;
+      const end = currentStart + chunkDuration;
+      if (currentTime >= currentStart && currentTime < end) {
+        const activeCoach = COACH_PROFILES.find((e: any) => e.id === wizardConfig.selectedCoachId) || COACH_PROFILES[0];
+        const readiness = currentProgression && calculateReadiness ? calculateReadiness(currentProgression) : { score: 80 };
+        return {
+          text: chunk.text,
+          coachStyle: activeCoach.subtitleStyle,
+          isPeak: readiness.score > 90
+        };
+      }
+      currentStart = end;
+    }
+    return null;
+  }, [activeItemIndex, currentTime, aiScript, storyboard, subtitlesEnabled, wizardConfig.selectedCoachId, currentProgression, calculateReadiness, COACH_PROFILES]);
+
+  if (!subtitlesEnabled || !currentSubtitle?.text) return null;
+
+  return (
+    <AnimatePresence mode="popLayout">
+        <motion.div
+          key={currentSubtitle.text}
+          initial={{ opacity: 0, y: 5, scale: 0.98 }}
+          animate={{ opacity: 1, y: 0, scale: 1 }}
+          exit={{ opacity: 0, y: -5, scale: 0.98 }}
+          transition={{ duration: 0.15 }}
+          className={`absolute w-full px-8 pointer-events-none z-30 flex items-center justify-center ${subtitlePosition === "bottom" ? "bottom-8 md:bottom-12" : "top-8 md:top-12"}`}
+        >
+          <span
+            className={`text-center font-bold tracking-tight px-4 py-2 backdrop-blur-sm shadow-xl transition-all duration-500 ${currentSubtitle.coachStyle.font} ${currentSubtitle.coachStyle.background} ${
+              subtitleStyle === "bold"
+                ? "font-black italic tracking-tighter uppercase rounded-sm border-2 border-charcoal"
+                : subtitleStyle === "minimal"
+                  ? "rounded-full px-6 border border-charcoal/10"
+                  : "rounded-xl border border-white/10"
+            } ${
+              subtitleSize === "small"
+                ? "text-sm md:text-base"
+                : subtitleSize === "medium"
+                  ? "text-lg md:text-xl"
+                  : "text-2xl md:text-3xl"
+            }`}
+            style={{
+              color: currentSubtitle.coachStyle.color,
+              boxShadow: currentSubtitle.isPeak ? `0 0 20px ${atmosphere?.glowColor || 'rgba(234,179,8,0.3)'}` : undefined,
+              borderColor: currentSubtitle.isPeak ? atmosphere?.primaryColor : undefined
+            }}
+          >
+            {currentSubtitle.text}
+          </span>
+        </motion.div>
+    </AnimatePresence>
+  );
+});
+
 const MasterReviewPlayer = React.lazy(() => import("../components/MasterReviewPlayer").then(module => ({ default: module.MasterReviewPlayer })));
 import StretchAnimationPlayer from "../components/StretchAnimationPlayer";
 import { Exercise, EXERCISE_DATABASE } from "../data/exercises";
@@ -320,14 +468,12 @@ export default function VideoStudioPage() {
   const safeInnerWidth = isClient ? window.innerWidth : 1440;
   const isMobileViewport = safeInnerWidth <= 768;
 
-  console.log("VideoStudioPage mounted");
-
   const [exercises, setExercises] = useState<Exercise[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [storyboard, setStoryboard] = useState<StoryboardItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  const { globalTime, localTime: currentTime, activeSceneIndex: activeItemIndex, playbackState, totalDuration } = useOrchestrator();
+  const { activeSceneIndex: activeItemIndex, playbackState, totalDuration } = useOrchestrator();
   const isPaused = playbackState !== 'playing';
 
   const [isRecording, setIsRecording] = useState(false);
@@ -556,7 +702,6 @@ export default function VideoStudioPage() {
     const handleVisibilityChange = () => {
       if (document.visibilityState === "hidden") {
         Orchestrator.pause();
-        console.debug("[Studio] Visibility hidden: Pausing playback engine.");
       }
     };
     document.addEventListener("visibilitychange", handleVisibilityChange);
@@ -617,9 +762,7 @@ export default function VideoStudioPage() {
       const ctx = audioContextRef.current;
       if (ctx) {
         if (ctx.state === "suspended") {
-          ctx.resume().then(() => {
-            console.debug("[AudioEngine] Context resumed successfully. State:", ctx.state);
-          }).catch(err => console.error("[AudioEngine] Failed to resume Context:", err));
+          ctx.resume().catch(err => console.error("[AudioEngine] Failed to resume Context:", err));
         }
 
         // Setup Soundtrack
@@ -703,26 +846,30 @@ export default function VideoStudioPage() {
 
   // Audio end decay (Final Audio Presence Pass)
   useEffect(() => {
-    if (!soundtrackGainNodeRef.current || !audioContextRef.current) return;
-    const now = audioContextRef.current.currentTime;
+    return Orchestrator.subscribeTime((state) => {
+      if (!soundtrackGainNodeRef.current || !audioContextRef.current) return;
+      const now = audioContextRef.current.currentTime;
+      const globalTime = state.globalTime;
 
-    // Decay starts 1 second before total duration ends
-    const isEnding = globalTime > 0 && totalDuration > 0 && globalTime > totalDuration - 1.5;
+      // Decay starts 1 second before total duration ends
+      const isEnding = globalTime > 0 && totalDuration > 0 && globalTime > totalDuration - 1.5;
 
-    // Override standard ducking if ending
-    if (isEnding) {
-       soundtrackGainNodeRef.current.gain.setTargetAtTime(0, now, 0.4); // graceful tail
-    } else {
-       // Maintain volume based on track settings
-       soundtrackGainNodeRef.current.gain.setTargetAtTime(isSoundtrackEnabled ? soundtrackVolume : 0, now, 0.1);
-    }
-  }, [globalTime, totalDuration, soundtrackVolume, isSoundtrackEnabled]);
+      // Override standard ducking if ending
+      if (isEnding) {
+        soundtrackGainNodeRef.current.gain.setTargetAtTime(0, now, 0.4); // graceful tail
+      } else {
+        // Maintain volume based on track settings
+        soundtrackGainNodeRef.current.gain.setTargetAtTime(isSoundtrackEnabled ? soundtrackVolume : 0, now, 0.1);
+      }
+    });
+  }, [totalDuration, soundtrackVolume, isSoundtrackEnabled]);
 
   // Sync state reference for animation loop
   const studioStateRef = useRef({
     storyboard,
     activeItemIndex,
-    currentTime,
+    currentTime: 0,
+    globalTime: 0,
     isRecording,
     aspectRatio,
     framingMode,
@@ -742,9 +889,9 @@ export default function VideoStudioPage() {
 
   useEffect(() => {
     studioStateRef.current = {
+      ...studioStateRef.current,
       storyboard,
       activeItemIndex,
-      currentTime,
       isRecording,
       aspectRatio,
       framingMode,
@@ -764,7 +911,6 @@ export default function VideoStudioPage() {
   }, [
     storyboard,
     activeItemIndex,
-    currentTime,
     isRecording,
     aspectRatio,
     framingMode,
@@ -1005,25 +1151,34 @@ export default function VideoStudioPage() {
     }
   }, [activeItemIndex]);
 
+let exercisesCachePromise: Promise<any> | null = null;
+
   // Load exercises from API
   useEffect(() => {
     async function loadExercises() {
       try {
-        const response = await fetch("/data/exercises.json");
-        if (!response.ok)
-          throw new Error(`HTTP error! status: ${response.status}`);
+        if (!exercisesCachePromise) {
+          exercisesCachePromise = fetch("/data/exercises.json").then(async (response) => {
+            if (!response.ok)
+              throw new Error(`HTTP error! status: ${response.status}`);
 
-        const contentType = response.headers.get("content-type");
-        if (!contentType || !contentType.includes("application/json")) {
-          const text = await response.text();
-          console.error("API returned non-JSON response:", text.substring(0, 100));
-          throw new Error("API returned non-JSON data (check server logs)");
+            const contentType = response.headers.get("content-type");
+            if (!contentType || !contentType.includes("application/json")) {
+              const text = await response.text();
+              console.error("API returned non-JSON response:", text.substring(0, 100));
+              throw new Error("API returned non-JSON data (check server logs)");
+            }
+
+            const data = await response.json();
+
+            if (!Array.isArray(data))
+              throw new Error("API returned non-array data");
+              
+            return data;
+          });
         }
-
-        const data = await response.json();
-
-        if (!Array.isArray(data))
-          throw new Error("API returned non-array data");
+        
+        const data = await exercisesCachePromise;
 
         // Standardize data from API to match Exercise interface
         const processed = data.map((ex: any) => {
@@ -1063,8 +1218,6 @@ secondaryMuscles: ex.secondaryMuscles || [],
         setExercises(processed);
       } catch (error) {
         console.error("Failed to load exercises:", error);
-
-        console.log("[Exercise Library] Falling back to local EXERCISE_DATABASE");
 
         setExercises(
           EXERCISE_DATABASE.map((ex) => ({
@@ -1366,65 +1519,6 @@ secondaryMuscles: ex.secondaryMuscles || [],
     }
     return null;
   }, [currentProgression?.consistencyStreak, currentProgression?.momentumScore]);
-
-  const currentSubtitle = useMemo(() => {
-    if (!subtitlesEnabled || storyboard.length === 0 || !aiScript) return null;
-    const activeItem = storyboard[activeItemIndex];
-    if (!activeItem) return null;
-
-    const sceneScript = aiScript.find(
-      (s) => s.exerciseName?.trim().toLowerCase() === activeItem.name?.trim().toLowerCase(),
-    );
-    if (!sceneScript?.script) return null;
-
-    const scriptText = sceneScript.script;
-    const duration = activeItem.duration;
-
-    const words = scriptText.split(/\s+/).filter(Boolean);
-    if (words.length === 0) return null;
-
-    const chunks = [];
-    let currentChunk = [];
-
-    for (let i = 0; i < words.length; i++) {
-      currentChunk.push(words[i]);
-      const isPunctuation = /[,.?!]/.test(words[i]);
-      if (
-        (currentChunk.length >= 4 && isPunctuation) ||
-        currentChunk.length >= 7
-      ) {
-        chunks.push({
-          text: currentChunk.join(" "),
-          wordCount: currentChunk.length,
-        });
-        currentChunk = [];
-      }
-    }
-    if (currentChunk.length > 0) {
-      chunks.push({
-        text: currentChunk.join(" "),
-        wordCount: currentChunk.length,
-      });
-    }
-
-    let currentStart = 0;
-    const totalWords = words.length;
-    for (const chunk of chunks) {
-      const chunkDuration = (chunk.wordCount / totalWords) * duration;
-      const end = currentStart + chunkDuration;
-      if (currentTime >= currentStart && currentTime < end) {
-        const activeCoach = COACH_PROFILES.find(e => e.id === wizardConfig.selectedCoachId) || COACH_PROFILES[0];
-        const readiness = currentProgression ? calculateReadiness(currentProgression) : { score: 80 };
-        return {
-          text: chunk.text,
-          coachStyle: activeCoach.subtitleStyle,
-          isPeak: readiness.score > 90
-        };
-      }
-      currentStart = end;
-    }
-    return null;
-  }, [activeItemIndex, currentTime, aiScript, storyboard, subtitlesEnabled, wizardConfig.selectedCoachId, currentProgression]);
 
   const uniqueCategories = useMemo(() => {
     const cats = new Set<string>();
@@ -1865,7 +1959,7 @@ secondaryMuscles: ex.secondaryMuscles || [],
       Orchestrator.pause();
     } else if (removeIndex < activeItemIndex) {
       // If we removed an item before the current one, decrement to stay on same item
-      Orchestrator.seekToScene(activeItemIndex - 1, currentTime);
+      Orchestrator.seekToScene(activeItemIndex - 1, Orchestrator.timeState.localTime);
     } else if (removeIndex === activeItemIndex) {
       // If we removed the active item, reset playback time for the new active item
       if (activeItemIndex >= newStoryboard.length) {
@@ -1936,9 +2030,9 @@ secondaryMuscles: ex.secondaryMuscles || [],
 
       // Keep playback active on the same item if it moved
       if (activeItemIndex === index) {
-        Orchestrator.seekToScene(targetIndex, currentTime);
+        Orchestrator.seekToScene(targetIndex, Orchestrator.timeState.localTime);
       } else if (activeItemIndex === targetIndex) {
-        Orchestrator.seekToScene(index, currentTime);
+        Orchestrator.seekToScene(index, Orchestrator.timeState.localTime);
       }
 
       return newBoard;
@@ -2025,7 +2119,7 @@ secondaryMuscles: ex.secondaryMuscles || [],
         mediaRecorderRef.current.stop();
       }
       if (exportRafRef.current) {
-        cancelAnimationFrame(exportRafRef.current);
+        clearTimeout(exportRafRef.current);
         exportRafRef.current = null;
       }
       setExportState("idle");
@@ -2049,7 +2143,6 @@ secondaryMuscles: ex.secondaryMuscles || [],
     if (totalDuration > 300) {
        // We'll just allow it, but we won't use window.confirm.
        // Just silently log or handle gracefully later if it fails.
-       console.warn("[Export Status] Exporting >5 min video. Watch memory.");
     } else if (isMobile && totalDuration > 180) {
       console.warn(
         "[Export Status] Warning: Long export duration on mobile device. Risk of memory limits.",
@@ -2829,7 +2922,7 @@ secondaryMuscles: ex.secondaryMuscles || [],
       } else if (e.key === "ArrowLeft") {
         if (e.shiftKey) {
           e.preventDefault();
-          Orchestrator.seek(globalTime - 5);
+          Orchestrator.seek(Orchestrator.timeState.globalTime - 5);
         } else {
           e.preventDefault();
           Orchestrator.seekToScene(Math.max(0, activeItemIndex - 1), 0);
@@ -2837,7 +2930,7 @@ secondaryMuscles: ex.secondaryMuscles || [],
       } else if (e.key === "ArrowRight") {
         if (e.shiftKey) {
           e.preventDefault();
-          Orchestrator.seek(globalTime + 5);
+          Orchestrator.seek(Orchestrator.timeState.globalTime + 5);
         } else {
           e.preventDefault();
           Orchestrator.seekToScene(Math.min(storyboard.length > 0 ? storyboard.length - 1 : 0, activeItemIndex + 1), 0);
@@ -2875,7 +2968,6 @@ secondaryMuscles: ex.secondaryMuscles || [],
     removeFromStoryboard,
     duplicateItem,
     isPaused,
-    globalTime,
     setupAudioContext,
   ]);
 
@@ -3981,7 +4073,7 @@ secondaryMuscles: ex.secondaryMuscles || [],
             animate={{ opacity: 1 }}
             exit={{ opacity: 0, scale: 1.05 }}
             transition={transitionClasses.cinematic}
-            className="fixed inset-x-0 top-0 h-[100dvh] md:h-auto md:inset-0 z-[100] bg-charcoal text-cream flex flex-col md:flex-row overflow-y-auto overflow-x-hidden md:overflow-hidden flex-nowrap"
+            className="fixed inset-x-0 top-0 min-h-screen md:h-[100dvh] md:inset-0 z-[100] bg-charcoal text-cream flex flex-col md:flex-row overflow-y-auto overflow-x-hidden md:overflow-hidden flex-nowrap"
           >
             <AnimatePresence>
               {isInitializingProtocol && (
@@ -4096,7 +4188,7 @@ secondaryMuscles: ex.secondaryMuscles || [],
             </div>
 
             {/* Main Content Area */}
-            <div className="flex-1 min-h-0 bg-[#FDFBF7] text-charcoal flex flex-col relative overflow-hidden">
+            <div className="flex-1 md:min-h-0 bg-[#FDFBF7] text-charcoal flex flex-col relative md:overflow-hidden">
               <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-white/60 via-transparent to-transparent pointer-events-none" />
 
               {/* Scrollable inner content */}
@@ -4443,7 +4535,7 @@ secondaryMuscles: ex.secondaryMuscles || [],
               </div>
 
               {/* Fixed Bottom Bar */}
-              <div className="flex-none pt-4 pb-4 md:pt-6 md:pb-6 px-4 md:px-12 border-t border-charcoal/5 bg-[#FDFBF7]/95 backdrop-blur-xl relative z-20 shadow-[0_-10px_30px_rgba(0,0,0,0.02)]">
+              <div className="flex-none pt-4 pb-4 md:pt-6 md:pb-6 px-4 md:px-12 border-t border-charcoal/5 bg-[#FDFBF7]/95 backdrop-blur-xl sticky bottom-0 z-20 shadow-[0_-10px_30px_rgba(0,0,0,0.02)]">
                 <div className="max-w-5xl mx-auto flex flex-col md:flex-row items-center justify-between gap-3">
                   <button
                     onClick={() => {
@@ -5384,95 +5476,80 @@ secondaryMuscles: ex.secondaryMuscles || [],
                         )}
 
                         <div className="flex flex-col items-end space-y-3 md:space-y-4">
-                          <div className="flex items-center gap-1 md:gap-2">
-                            <div className="text-4xl md:text-6xl font-sans font-black text-charcoal tabular-nums italic tracking-tighter drop-shadow-sm">
-                              {Math.max(
-                                0,
-                                Math.ceil(
-                                  (storyboard[activeItemIndex]?.duration || 0) -
-                                    (currentTime || 0),
-                                ),
-                              )}
-                            </div>
-                            <div className="text-[9px] md:text-xs font-black text-charcoal/30 uppercase vertical-text tracking-widest mt-1">
-                              SEC
-                            </div>
-                          </div>
+                          <TimeObserver render={({ localTime: currentTime }) => (
+                            <>
+                              <div className="flex items-center gap-1 md:gap-2">
+                                <div className="text-4xl md:text-6xl font-sans font-black text-charcoal tabular-nums italic tracking-tighter drop-shadow-sm">
+                                  {Math.max(
+                                    0,
+                                    Math.ceil(
+                                      (storyboard[activeItemIndex]?.duration || 0) -
+                                        currentTime,
+                                    ),
+                                  )}
+                                </div>
+                                <div className="text-[9px] md:text-xs font-black text-charcoal/30 uppercase vertical-text tracking-widest mt-1">
+                                  SEC
+                                </div>
+                              </div>
 
-                          <div className="flex flex-col items-end gap-1.5">
-                            <span className="text-[7px] md:text-[9px] font-black uppercase tracking-[0.3em] text-charcoal/30">
-                              Scene {activeItemIndex + 1} / {storyboard.length}
-                            </span>
-                            <div className="w-16 md:w-24 h-1 bg-charcoal/10 rounded-full overflow-hidden">
-                              <motion.div
-                                className="h-full bg-charcoal/80"
-                                initial={{ width: 0 }}
-                                animate={{
-                                  width: `${((currentTime || 0) / (storyboard[activeItemIndex]?.duration || 1)) * 100}%`,
-                                }}
-                                transition={{ ease: "linear", duration: 0.1 }}
-                              />
-                            </div>
-                          </div>
+                              <div className="flex flex-col items-end gap-1.5">
+                                <span className="text-[7px] md:text-[9px] font-black uppercase tracking-[0.3em] text-charcoal/30">
+                                  Scene {activeItemIndex + 1} / {storyboard.length}
+                                </span>
+                                <div className="w-16 md:w-24 h-1 bg-charcoal/10 rounded-full overflow-hidden">
+                                  <motion.div
+                                    className="h-full bg-charcoal/80"
+                                    initial={{ width: 0 }}
+                                    animate={{
+                                      width: `${(currentTime / (storyboard[activeItemIndex]?.duration || 1)) * 100}%`,
+                                    }}
+                                    transition={{ ease: "linear", duration: 0.1 }}
+                                  />
+                                </div>
+                              </div>
+                            </>
+                          )} />
                         </div>
                       </div>
                     </motion.div>
                   </AnimatePresence>
 
-                  {/* Subtitle Overlay (Kept on top) */}
-                  <AnimatePresence mode="popLayout">
-                    {subtitlesEnabled && currentSubtitle?.text && (
-                      <motion.div
-                        key={currentSubtitle.text}
-                        initial={{ opacity: 0, y: 5, scale: 0.98 }}
-                        animate={{ opacity: 1, y: 0, scale: 1 }}
-                        exit={{ opacity: 0, y: -5, scale: 0.98 }}
-                        transition={transitionClasses.system}
-                        className={`absolute w-full px-8 pointer-events-none z-30 flex items-center justify-center ${subtitlePosition === "bottom" ? "bottom-8 md:bottom-12" : "top-8 md:top-12"}`}
-                      >
-                        <span
-                          className={`text-center font-bold tracking-tight px-4 py-2 backdrop-blur-sm shadow-xl transition-all duration-500 ${currentSubtitle.coachStyle.font} ${currentSubtitle.coachStyle.background} ${
-                            subtitleStyle === "bold"
-                              ? "font-black italic tracking-tighter uppercase rounded-sm border-2 border-charcoal"
-                              : subtitleStyle === "minimal"
-                                ? "rounded-full px-6 border border-charcoal/10"
-                                : "rounded-xl border border-white/10"
-                          } ${
-                            subtitleSize === "small"
-                              ? "text-sm md:text-base"
-                              : subtitleSize === "medium"
-                                ? "text-lg md:text-xl"
-                                : "text-2xl md:text-3xl"
-                          }`}
-                          style={{
-                            color: currentSubtitle.coachStyle.color,
-                            boxShadow: currentSubtitle.isPeak ? `0 0 20px ${atmosphere?.glowColor || 'rgba(234,179,8,0.3)'}` : undefined,
-                            borderColor: currentSubtitle.isPeak ? atmosphere?.primaryColor : undefined
-                          }}
-                        >
-                          {currentSubtitle.text}
-                        </span>
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
+                  {/* Subtitle Overlay (Isolated) */}
+                  <SubtitleOverlay 
+                    subtitlesEnabled={subtitlesEnabled}
+                    storyboard={storyboard}
+                    activeItemIndex={activeItemIndex}
+                    aiScript={aiScript}
+                    wizardConfig={wizardConfig}
+                    currentProgression={currentProgression}
+                    subtitlePosition={subtitlePosition}
+                    subtitleStyle={subtitleStyle}
+                    subtitleSize={subtitleSize}
+                    atmosphere={atmosphere}
+                    calculateReadiness={calculateReadiness}
+                    COACH_PROFILES={COACH_PROFILES}
+                  />
 
                   {/* Creator Hook Overlay */}
-                  <AnimatePresence>
-                    {activeItemIndex === 0 && currentTime < 2.5 && hookTitle && (
-                      <motion.div
-                        initial={{ opacity: 0, y: 20, rotate: -2 }}
-                        animate={{ opacity: 1, y: 0, rotate: 0 }}
-                        exit={{ opacity: 0, scale: 1.5, filter: "blur(10px)" }}
-                        className="absolute inset-0 z-50 flex items-center justify-center p-8 pointer-events-none"
-                      >
-                        <div className="bg-gold text-charcoal px-8 py-4 shadow-[10px_10px_0px_0px_rgba(0,0,0,1)] border-4 border-charcoal transform -rotate-1">
-                          <h1 className="text-3xl md:text-6xl font-black italic leading-none tracking-tighter uppercase">
-                            {hookTitle}
-                          </h1>
-                        </div>
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
+                  <TimeObserver render={(state) => (
+                    <AnimatePresence>
+                      {activeItemIndex === 0 && state.localTime < 2.5 && hookTitle && (
+                        <motion.div
+                          initial={{ opacity: 0, y: 20, rotate: -2 }}
+                          animate={{ opacity: 1, y: 0, rotate: 0 }}
+                          exit={{ opacity: 0, scale: 1.5, filter: "blur(10px)" }}
+                          className="absolute inset-0 z-50 flex items-center justify-center p-8 pointer-events-none"
+                        >
+                          <div className="bg-gold text-charcoal px-8 py-4 shadow-[10px_10px_0px_0px_rgba(0,0,0,1)] border-4 border-charcoal transform -rotate-1">
+                            <h1 className="text-3xl md:text-6xl font-black italic leading-none tracking-tighter uppercase">
+                              {hookTitle}
+                            </h1>
+                          </div>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                  )} />
                 </div>
               ) : (
                 <div className="absolute inset-0 flex flex-col items-center justify-center text-charcoal/30 p-6 md:p-12 text-center bg-cream/80 backdrop-blur-sm z-0">
@@ -5616,42 +5693,7 @@ secondaryMuscles: ex.secondaryMuscles || [],
                     Space
                   </div>
                 </button>
-                <div className="space-y-1">
-                  <div className="text-[9px] md:text-[10px] font-mono text-cream/40 uppercase tabular-nums">
-                    {Math.floor((globalTime || 0) / 60)}:
-                    {Math.floor((globalTime || 0) % 60)
-                      .toString()
-                      .padStart(2, "0")}{" "}
-                    / {Math.ceil(storyboard.reduce((acc, curr) => acc + (curr.duration || 0), 0))}
-                    s
-                  </div>
-                  <div
-                    className="w-24 md:w-48 h-2 bg-cream/10 rounded-full relative cursor-ew-resize group"
-                    onPointerDown={(e) => {
-                      const rect = e.currentTarget.getBoundingClientRect();
-                      const updateSeek = (clientX: number) => {
-                         const pos = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
-                         const totalDur = storyboard.reduce((acc, curr) => acc + (curr.duration || 0), 0);
-                         Orchestrator.seek(pos * totalDur);
-                      };
-                      updateSeek(e.clientX);
-
-                      const onMove = (moveEv: PointerEvent) => {
-                         updateSeek(moveEv.clientX);
-                      };
-                      const onUp = () => {
-                         window.removeEventListener('pointermove', onMove);
-                         window.removeEventListener('pointerup', onUp);
-                      };
-                      window.addEventListener('pointermove', onMove);
-                      window.addEventListener('pointerup', onUp);
-                    }}
-                  >
-                    <div className="absolute top-0 bottom-0 left-0 bg-gold/30 transition-all duration-75 group-hover:bg-gold/50" style={{ width: `${storyboard.length ? Math.min(100, (globalTime / storyboard.reduce((acc, c) => acc + (c.duration || 0), 0)) * 100) : 0}%` }} />
-                    <div className="absolute top-0 bottom-0 left-0 bg-gold transition-all duration-75" style={{ width: `${storyboard.length ? Math.min(100, (globalTime / storyboard.reduce((acc, c) => acc + (c.duration || 0), 0)) * 100) : 0}%` }} />
-                    <div className="absolute top-1/2 -mt-1 w-2 h-2 rounded-full bg-white shadow-lg opacity-0 group-hover:opacity-100 transition-opacity" style={{ left: `calc(${storyboard.length ? Math.min(100, (globalTime / storyboard.reduce((acc, c) => acc + (c.duration || 0), 0)) * 100) : 0}% - 4px)` }} />
-                  </div>
-                </div>
+                <PlaybackControlsTimeObserver storyboard={storyboard} />
               </div>
 
               <div className="flex items-center gap-2 md:gap-4">
