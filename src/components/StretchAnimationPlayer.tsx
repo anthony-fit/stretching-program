@@ -559,7 +559,6 @@ export default function StretchAnimationPlayer({
               setMediaStats({ w: e.currentTarget.naturalWidth, h: e.currentTarget.naturalHeight });
             }}
             onError={() => {
-              console.warn("Animation image load failed for:", currentSlug, "frame:", frame, "src:", isPreparing ? `${framesBasePath}/frame_001.webp` : frameSrc);
               if (frame > 1) {
                 // If we miss a middle/end frame, just loop what we do have
                 setActualTotalFrames(frame - 1);
@@ -568,9 +567,7 @@ export default function StretchAnimationPlayer({
                 setUseFallback(true);
               } else {
                 // The ultimate fallback `default_stretch` ALSO failed
-                console.error("Ultimate fallback failed to load. Halting animation.");
-                setIsLoaded(true); 
-                setIsFullyBroken(true);
+                setTimeout(() => { setIsLoaded(true); setIsFullyBroken(true); }, 0);
               }
             }}
             className={`w-full h-full object-contain mix-blend-multiply transition-opacity duration-300 ${isLoaded ? 'opacity-100' : 'opacity-0'}`}

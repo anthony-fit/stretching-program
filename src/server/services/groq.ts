@@ -1,5 +1,18 @@
 import Groq from "groq-sdk";
 
+// Prevent empty string or invalid strings from breaking the SDK
+if (typeof process !== "undefined" && process.env) {
+  if (
+    !process.env.GROQ_BASE_URL ||
+    process.env.GROQ_BASE_URL === "" ||
+    process.env.GROQ_BASE_URL === "undefined" ||
+    process.env.GROQ_BASE_URL === "null" ||
+    !process.env.GROQ_BASE_URL.startsWith("http")
+  ) {
+    delete process.env.GROQ_BASE_URL;
+  }
+}
+
 export function validateGroqEnvironment(apiKey: string) {
   if (!apiKey) {
     throw new Error("[AI] API key is missing. Skipping LLM generation.");
@@ -15,7 +28,7 @@ export async function generateCompositionBlueprintViaLLM(
   validateGroqEnvironment(apiKey);
 
   const groqOptions: any = { apiKey };
-  if (baseURL) groqOptions.baseURL = baseURL;
+  if (baseURL && baseURL !== "undefined" && baseURL !== "null" && baseURL.startsWith("http")) groqOptions.baseURL = baseURL;
 
   const groq = new Groq(groqOptions);
 
@@ -123,7 +136,7 @@ export async function generateRoutineScript(
   validateGroqEnvironment(apiKey);
 
   const groqOptions: any = { apiKey };
-  if (baseURL) groqOptions.baseURL = baseURL;
+  if (baseURL && baseURL !== "undefined" && baseURL !== "null" && baseURL.startsWith("http")) groqOptions.baseURL = baseURL;
 
   const groq = new Groq(groqOptions);
 
@@ -192,7 +205,7 @@ export async function classifyWorkoutIntentViaLLM(
   validateGroqEnvironment(apiKey);
 
   const groqOptions: any = { apiKey };
-  if (baseURL) groqOptions.baseURL = baseURL;
+  if (baseURL && baseURL !== "undefined" && baseURL !== "null" && baseURL.startsWith("http")) groqOptions.baseURL = baseURL;
 
   const groq = new Groq(groqOptions);
 
@@ -265,7 +278,7 @@ export async function generateSEOMetadata(
   validateGroqEnvironment(apiKey);
 
   const groqOptions: any = { apiKey };
-  if (baseURL) groqOptions.baseURL = baseURL;
+  if (baseURL && baseURL !== "undefined" && baseURL !== "null" && baseURL.startsWith("http")) groqOptions.baseURL = baseURL;
 
   const groq = new Groq(groqOptions);
 
@@ -315,7 +328,7 @@ export async function generateSocialCaptions(
   validateGroqEnvironment(apiKey);
 
   const groqOptions: any = { apiKey };
-  if (baseURL) groqOptions.baseURL = baseURL;
+  if (baseURL && baseURL !== "undefined" && baseURL !== "null" && baseURL.startsWith("http")) groqOptions.baseURL = baseURL;
 
   const groq = new Groq(groqOptions);
 

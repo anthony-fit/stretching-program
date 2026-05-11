@@ -5,10 +5,33 @@ import {
   generateRoutineScript,
   generateSEOMetadata,
   generateSocialCaptions,
+  classifyWorkoutIntentViaLLM,
 } from "../services/groq.ts";
 
 
 const router = Router();
+
+router.post("/classify-intent", async (req, res) => {
+  try {
+    const { promptText } = req.body;
+
+    const result = await classifyWorkoutIntentViaLLM(
+      process.env.GROQ_API_KEY || "",
+      promptText
+    );
+
+    res.json(result);
+  } catch (error: any) {
+    if (error?.message && !error.message.includes("Invalid URL")) {
+       console.warn("[AI ROUTE] classify-intent fallback activated");
+    }
+    
+    res.status(500).json({
+      error: "Failed to classify intent",
+      details: error?.message || "Unknown error",
+    });
+  }
+});
 
 router.post("/generate-composition", async (req, res) => {
   try {

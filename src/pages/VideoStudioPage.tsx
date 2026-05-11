@@ -1974,8 +1974,8 @@ export default function VideoStudioPage() {
   );
 
   const generateRoutine = async (overrideConfig?: any) => {
-    const config = overrideConfig || wizardConfig;
-    const totalSeconds = parseInt(config.duration);
+    const config = overrideConfig && !overrideConfig.nativeEvent ? overrideConfig : wizardConfig;
+    const totalSeconds = parseInt(config.duration || "120");
     const durationMinutes = Math.max(1, Math.floor(totalSeconds / 60));
 
     setIsInitializingProtocol(true);
@@ -5262,7 +5262,7 @@ export default function VideoStudioPage() {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0, scale: 1.05 }}
               transition={transitionClasses.cinematic}
-              className="fixed inset-x-0 top-0 min-h-screen md:h-[100dvh] md:inset-0 z-[100] bg-charcoal text-cream flex flex-col md:flex-row overflow-y-auto overflow-x-hidden md:overflow-hidden flex-nowrap"
+              className="fixed inset-0 h-[100dvh] z-[100] bg-charcoal text-cream flex flex-col md:flex-row overflow-y-auto overflow-x-hidden md:overflow-hidden flex-nowrap"
             >
               <AnimatePresence>
                 {isInitializingProtocol && (
@@ -5884,7 +5884,7 @@ export default function VideoStudioPage() {
                 </div>
 
                 {/* Fixed Bottom Bar */}
-                <div className="flex-none pt-4 pb-4 md:pt-6 md:pb-6 px-4 md:px-12 border-t border-charcoal/5 bg-[#FDFBF7]/95 backdrop-blur-xl sticky bottom-0 z-20 shadow-[0_-10px_30px_rgba(0,0,0,0.02)]">
+                <div className="flex-none pt-4 pb-[calc(2rem+env(safe-area-inset-bottom)+40px)] md:pb-6 md:pt-6 px-4 md:px-12 border-t border-charcoal/5 bg-[#FDFBF7]/95 backdrop-blur-xl sticky bottom-0 z-20 shadow-[0_-10px_30px_rgba(0,0,0,0.02)]">
                   <div className="max-w-5xl mx-auto flex flex-col md:flex-row items-center justify-between gap-3">
                     <button
                       onClick={() => {
@@ -5900,7 +5900,7 @@ export default function VideoStudioPage() {
                     </button>
                     <div className="flex flex-col md:flex-row gap-3 order-1 md:order-2 w-full md:w-auto">
                       <button
-                        onClick={generateRoutine}
+                        onClick={() => generateRoutine()}
                         disabled={dailyExports >= MAX_DAILY_EXPORTS}
                         className={`group px-8 md:px-10 py-3.5 md:py-4 rounded-full font-bold uppercase tracking-widest transition-all ${
                           dailyExports >= MAX_DAILY_EXPORTS

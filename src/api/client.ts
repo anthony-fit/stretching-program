@@ -30,7 +30,6 @@ export async function classifyWorkoutIntent(promptText: string) {
 
     return await response.json();
   } catch (error) {
-    console.error("Intent classification fallback:", error);
     // Graceful fallback parser in client just in case
     return fallbackParser(promptText);
   }
