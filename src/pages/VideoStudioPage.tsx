@@ -2053,14 +2053,21 @@ export default function VideoStudioPage() {
     [recentlyAddedId, pushUndo, applyPacingIntelligence, storyboard.length],
   );
 
+  const isGeneratingRef = useRef(false);
+
   const generateRoutine = async (overrideConfig?: any) => {
+    if (isGeneratingRef.current) return;
+    isGeneratingRef.current = true;
+
     const config = overrideConfig && !overrideConfig.nativeEvent ? overrideConfig : wizardConfig;
     const totalSeconds = parseInt(config.duration || "120");
     const durationMinutes = Math.max(1, Math.floor(totalSeconds / 60));
 
     setIsInitializingProtocol(true);
-    setGenerationMessage("Orchestrating blueprint sequence...");
+    setGenerationMessage("Preparing user content...");
     console.log("[PIPELINE] Wizard Config Sent To Groq:", config);
+    // Yield to the browser so the UI updates to show the loading screen BEFORE intensive processing
+    await new Promise(resolve => setTimeout(resolve, 50));
 
     try {
       // Create blueprint completely via LLM
@@ -2072,6 +2079,7 @@ export default function VideoStudioPage() {
       const blueprint = await generateCompositionBlueprint({
         ...config,
         durationMinutes,
+        exercises,
       });
 
       console.log("[PIPELINE] LLM Blueprint Received:", blueprint);
@@ -2166,11 +2174,12 @@ export default function VideoStudioPage() {
         await import("../lib/progressiveAdaptationEngine");
       const memoryResult = applyProgressiveAdaptation(
         generatedItems,
+        generatedAiScript,
         exercises,
         config,
       );
       generatedItems = memoryResult.items;
-      generatedAiScript = [...generatedAiScript, ...memoryResult.addedScripts];
+      generatedAiScript = memoryResult.scripts;
       if (memoryResult.intelligenceLogs)
         gatheredIntelligence.push(...memoryResult.intelligenceLogs);
 
@@ -2181,6 +2190,28 @@ export default function VideoStudioPage() {
         gatheredIntelligence.push("Viral pacing modifier active");
         console.log(`[SOCIAL] Viral pacing modifier active for preset: ${config.creatorMode}`);
       }
+
+      // --- Deterministic Movement Intelligence Layer ---
+      const { applyMovementIntelligence } = await import("../lib/movementIntelligence");
+      const movementResult = applyMovementIntelligence(generatedItems, generatedAiScript);
+      generatedItems = movementResult.items;
+      generatedAiScript = movementResult.scripts;
+      if (movementResult.intelligenceLogs) {
+        gatheredIntelligence.push(...movementResult.intelligenceLogs);
+      }
+      console.log("[DIAGNOSTICS] Movement Flow:", movementResult.diagnostics);
+      // ----------------------------------------
+
+      // --- Adaptive Session Rhythm System ---
+      const { applyAdaptiveRhythm } = await import("../lib/adaptiveRhythmEngine");
+      const rhythmResult = applyAdaptiveRhythm(generatedItems, generatedAiScript, totalSeconds);
+      generatedItems = rhythmResult.items;
+      generatedAiScript = rhythmResult.scripts;
+      if (rhythmResult.intelligenceLogs) {
+        gatheredIntelligence.push(...rhythmResult.intelligenceLogs);
+      }
+      console.log("[DIAGNOSTICS] Rhythm System:", rhythmResult.diagnostics);
+      // ----------------------------------------
       
       // Record session tracking
       recordCompletedSession(generatedItems, config);
@@ -2204,6 +2235,12 @@ export default function VideoStudioPage() {
 
       // Apply selected creator mode defaults
       applyCreatorMode(wizardConfig.creatorMode, wizardConfig);
+
+      console.log(`[DIAGNOSTICS] Generation pipeline completed:
+- Generated items: ${generatedItems.length}
+- Target seconds: ${totalSeconds}
+- Actual seconds after normalisation: ${generatedItems.reduce((acc, i) => acc + i.duration, 0)}
+- Intelligence logs collected: ${gatheredIntelligence.length}`);
 
       console.log("[PIPELINE] Valid storyboard hydrated");
       setShowWizard(false);
@@ -2335,14 +2372,12 @@ export default function VideoStudioPage() {
           await import("../lib/progressiveAdaptationEngine");
         const memoryResult = applyProgressiveAdaptation(
           generatedItems,
+          generatedAiScript,
           exercises,
           config,
         );
         generatedItems = memoryResult.items;
-        generatedAiScript = [
-          ...generatedAiScript,
-          ...memoryResult.addedScripts,
-        ];
+        generatedAiScript = memoryResult.scripts;
         if (memoryResult.intelligenceLogs)
           gatheredIntelligence.push(...memoryResult.intelligenceLogs);
 
@@ -2410,6 +2445,8 @@ export default function VideoStudioPage() {
         setIsInitializingProtocol(false);
         setGenerationMessage(null);
       }
+    } finally {
+      isGeneratingRef.current = false;
     }
   };
 
@@ -5377,7 +5414,7 @@ export default function VideoStudioPage() {
                       <Activity className="w-6 h-6 text-gold/80" />
                     </div>
                     <h2 className="text-3xl font-serif italic text-white mb-3">
-                      Orchestrating Workspace
+                      Preparing user content...
                     </h2>
                     <p className="text-[10px] uppercase tracking-[0.3em] font-medium text-white/40">
                       Initializing Adaptive Logic

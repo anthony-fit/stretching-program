@@ -68,7 +68,7 @@ export default function CaloriesBurnedCalculatorPage() {
                   const activity = MET_ACTIVITIES.find(a => a.id === e.target.value);
                   if (activity) setSelectedActivity(activity);
                 }}
-                className="w-full bg-cream/50 border border-charcoal/10 rounded-2xl px-6 py-4 focus:ring-2 focus:ring-gold/20 focus:border-gold outline-none transition-all appearance-none text-lg font-medium"
+                className="w-full bg-cream/50 border border-charcoal/10 rounded-2xl px-6 py-4 focus:ring-2 focus:ring-gold/20 focus:border-gold outline-none transition-all appearance-none text-lg font-medium text-charcoal"
               >
                 {MET_ACTIVITIES.map(activity => (
                   <option key={activity.id} value={activity.id}>

@@ -12,7 +12,7 @@ const API_BASE = "/api";
 // Composition Blueprint
 // ---------------------------------------------------------------------------
 
-export async function classifyWorkoutIntent(promptText: string) {
+export async function classifyWorkoutIntent(promptText: string): Promise<any> {
   try {
     return await safeFetch(`${API_BASE}/classify-intent`, {
       method: "POST",
@@ -73,12 +73,13 @@ export async function generateCompositionBlueprintViaLLM(
   prefs: any,
   exerciseDatabaseSummary: string,
 ) {
+  console.log("[DEBUG api/client.ts] About to POST /api/generate-composition, chars:", exerciseDatabaseSummary.length);
   try {
     return await safeFetch(`${API_BASE}/generate-composition`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ prefs, exerciseDatabaseSummary }),
-      timeoutMs: 25000,
+      timeoutMs: 45000,
       retries: 1,
     });
   } catch (error) {
@@ -96,7 +97,7 @@ export async function generateRoutineScript(
   goal: string,
   creatorMode?: string,
   context?: any,
-) {
+): Promise<{ exerciseName: string; script: string }[]> {
   try {
     return await safeFetch(`${API_BASE}/generate-script`, {
       method: "POST",

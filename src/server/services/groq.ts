@@ -35,6 +35,7 @@ export async function generateCompositionBlueprintViaLLM(
   exerciseDatabaseSummary: string,
   baseURL?: string,
 ) {
+  console.log(`[DEBUG groq.ts] /generate-composition called. summary string chars: ${exerciseDatabaseSummary?.length}`);
   validateGroqEnvironment(apiKey);
 
   const groqOptions: any = { apiKey };
@@ -47,7 +48,7 @@ export async function generateCompositionBlueprintViaLLM(
     The user has requested a routine.
 
     Goal/Type: ${prefs.type}
-    Duration (minutes): ${prefs.durationMinutes || parseInt(prefs.duration) / 60}
+    Duration (minutes): ${prefs.durationMinutes || parseInt(prefs.duration) / 60} (Target Total Seconds: ${(prefs.durationMinutes || parseInt(prefs.duration) / 60) * 60})
     Level: ${prefs.level}
     Focus: ${prefs.focus}
     Pain Points: ${prefs.painPoints?.join(", ") || "None"}
@@ -55,7 +56,12 @@ export async function generateCompositionBlueprintViaLLM(
     Intensity: ${prefs.intensity}
     Coaching Style: ${prefs.coachingStyle}
 
-    Here is the catalog of available explicit exercises we can map to:
+    CRITICAL RULES:
+    1. The sum of all scene 'duration's MUST perfectly match the Target Total Seconds exactly.
+    2. Exercises MUST be realistic for the requested length (e.g. fewer exercises for 1m, more for 30m).
+    3. ONLY use exerciseId from the catalog below.
+
+    Here is the catalog of verified exercises (each maps to an animation/movement asset):
     ${exerciseDatabaseSummary}
 
     Output strictly a JSON object containing an array of candidate composition blueprints.
@@ -104,7 +110,7 @@ export async function generateCompositionBlueprintViaLLM(
       max_tokens: 4000,
       response_format: { type: "json_object" },
     }),
-    20000 // 20s timeout
+    45000 // 45s timeout to allow processing 800+ exercise context
   );
 
   const text = chatCompletion.choices[0]?.message?.content || "[]";

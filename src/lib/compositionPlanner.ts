@@ -83,14 +83,17 @@ export async function generateCompositionBlueprint(prefs: {
   intensity: string;
   coachingStyle: string;
   audienceContext?: any;
+  exercises?: Exercise[];
 }): Promise<CompositionBlueprint | null> {
   // We summarize the database for the LLM
-  const dbSummary = EXERCISE_DATABASE.map(
+  const sourceDB = prefs.exercises && prefs.exercises.length > 0 ? prefs.exercises : EXERCISE_DATABASE;
+  const dbSummary = sourceDB.map(
     (ex) =>
-      `- ID: ${ex.id} | Name: ${ex.name} | Category: ${ex.category} | Focus: ${ex.focus.join(", ")} | Level: ${ex.level}`,
+      `[${ex.id}] ${ex.name} | Cat:${ex.category} | Mus:${(ex.focus || []).join(",")} | Eq:${(ex.equipment || []).join(",")} | Lvl:${ex.level}`
   ).join("\\n");
 
-  // Inject learned taste profile from Composition Memory
+    // Inject learned taste profile from Composition Memory
+  console.log(`[DEBUG] Total exercises mapped to string: ${sourceDB.length}, lines: ${dbSummary.split("\\n").length}, approx string size: ${dbSummary.length} chars`);
   const tasteProfile = getLearnedTasteProfile();
 
   // Predict Session-to-Session continuity
@@ -252,9 +255,9 @@ export async function generateCompositionBlueprint(prefs: {
   const candidates = await generateCompositionBlueprintViaLLM(
     sanitizedPrefs,
     dbSummary,
-  );
+  ) as any[];
 
-  if (candidates && candidates.length > 0) {
+  if (candidates && Array.isArray(candidates) && candidates.length > 0) {
     const targetSeconds = prefs.durationMinutes
       ? prefs.durationMinutes * 60
       : parseInt(prefs.duration);

@@ -36,7 +36,7 @@ export async function safeFetch<T>(url: string, options: SafeFetchOptions = {}):
       // Check if there is content to parse
       const text = await response.text();
       try {
-        return text ? JSON.parse(text) : {};
+        return text ? JSON.parse(text) : ({} as T);
       } catch (e) {
         throw new Error("Invalid JSON response from server.");
       }

@@ -57,8 +57,13 @@ export function resolveVerifiedExercise(
 
   const poolToUse = fallbackPool.length > 0 ? fallbackPool : exercises;
   
-  // Pick one randomly or first one
-  const deterministicReplacement = poolToUse[Math.floor(Math.random() * poolToUse.length)];
+  // Deterministic fallback based on input string to ensure consistency
+  let hash = 0;
+  for (let i = 0; i < aiSuggestedName.length; i++) {
+    hash = aiSuggestedName.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  const deterministicIndex = Math.abs(hash) % poolToUse.length;
+  const deterministicReplacement = poolToUse[deterministicIndex];
 
   console.log(`[REPLACED] Unsupported AI exercise swapped: "${aiSuggestedName}" -> "${deterministicReplacement.name}"`);
   return deterministicReplacement;

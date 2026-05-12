@@ -14,6 +14,9 @@ interface SessionMemory {
 }
 
 function getMemory(): SessionMemory[] {
+  if (typeof window === "undefined" || typeof localStorage === "undefined") {
+    return [];
+  }
   try {
     const raw = localStorage.getItem(MEMORY_KEY);
     if (raw) return JSON.parse(raw);
@@ -74,20 +77,21 @@ export function recordCompletedSession(items: StoryboardItem[], config: any) {
 
 export function applyProgressiveAdaptation(
   items: StoryboardItem[],
+  scripts: { exerciseName: string; script: string }[],
   allExercises: Exercise[],
   wizardConfig: any,
 ): {
   items: StoryboardItem[];
-  addedScripts: { exerciseName: string; script: string }[];
+  scripts: { exerciseName: string; script: string }[];
   intelligenceLogs: string[];
 } {
   const history = getMemory();
   if (history.length === 0 || items.length === 0)
-    return { items, addedScripts: [], intelligenceLogs: [] };
+    return { items, scripts, intelligenceLogs: [] };
 
   const lastSession = history[history.length - 1];
   let adapted = [...items];
-  const addedScripts: { exerciseName: string; script: string }[] = [];
+  let adaptedScripts = [...scripts];
   const intelligenceLogs: string[] = [];
 
   const getReplacement = (
@@ -118,10 +122,12 @@ export function applyProgressiveAdaptation(
       baseDuration: duration,
       instanceId: Math.random().toString(36).substr(2, 9),
     } as StoryboardItem;
-    addedScripts.push({
-      exerciseName: newItem.name,
-      script: scriptMsg,
-    });
+    // Replace script synchronously instead of appending
+    if (idx < adaptedScripts.length) {
+      adaptedScripts[idx] = { exerciseName: newItem.name, script: scriptMsg };
+    } else {
+      adaptedScripts.push({ exerciseName: newItem.name, script: scriptMsg });
+    }
   };
 
   // Rule A: Recent high HIIT density -> increase recovery cadence next session
@@ -222,5 +228,5 @@ export function applyProgressiveAdaptation(
     }
   }
 
-  return { items: adapted, addedScripts, intelligenceLogs };
+  return { items: adapted, scripts: adaptedScripts, intelligenceLogs };
 }
