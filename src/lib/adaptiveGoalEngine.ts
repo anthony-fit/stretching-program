@@ -17,8 +17,8 @@ export function applyAdaptiveGoalEngine(
   const addedScripts: { exerciseName: string; script: string }[] = [];
   const intelligenceLogs: string[] = [];
 
-  const goal = (wizardConfig.type || "").toLowerCase();
-  const focus = (wizardConfig.focus || "").toLowerCase();
+  const goal = (wizardConfig?.type || "").toLowerCase();
+  const focus = (wizardConfig?.focus || "").toLowerCase();
 
   const isFatBurn =
     goal.includes("fat burn") ||

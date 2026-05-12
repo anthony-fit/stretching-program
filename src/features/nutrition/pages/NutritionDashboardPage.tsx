@@ -14,6 +14,7 @@ import { RecoveryInsightCard } from '../components/RecoveryInsightCard';
 import { HabitStreakCard } from '../components/HabitStreakCard';
 import { nutritionPersistenceService } from '../services/nutritionPersistenceService';
 import { nutritionCoachingService, CoachingInsight } from '../services/nutritionCoachingService';
+import { nutritionApiService } from '../adapters';
 import { buildNutritionInsightContext } from '../services/buildNutritionInsightContext';
 import { calculateTDEE } from '../calculators/calculateTDEE';
 import { calculateMacroTargets } from '../calculators/calculateMacroTargets';
@@ -141,7 +142,7 @@ export default function NutritionDashboardPage() {
     }
     setIsSearching(true);
     try {
-      const data = await safeFetch<any>(`/api/nutrition/search?q=${encodeURIComponent(query)}`);
+      const data = await nutritionApiService.searchFood(query);
       setSearchResults(data.results || []);
     } catch (e) {
       console.warn('Search failed', e);
@@ -152,8 +153,10 @@ export default function NutritionDashboardPage() {
 
   const handleSelectFood = async (result: FoodSearchResult) => {
     try {
-      const data = await safeFetch<any>(`/api/nutrition/food?id=${result.id}`);
-      setSelectedFood(data.food);
+      const data = await nutritionApiService.getFoodDetails(result.id);
+      if (data) {
+        setSelectedFood(data.food);
+      }
     } catch (e) {
       console.warn('Fetch food failed', e);
     }

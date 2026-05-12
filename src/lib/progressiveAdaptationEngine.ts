@@ -133,7 +133,7 @@ export function applyProgressiveAdaptation(
   // Rule A: Recent high HIIT density -> increase recovery cadence next session
   if (
     lastSession.loadScoreAvg > 2.2 &&
-    (wizardConfig.type || "").toLowerCase().includes("hiit")
+    (wizardConfig?.type || "").toLowerCase().includes("hiit")
   ) {
     const logMsg = "Fatigue balancing injected (Recent high load detected)";
     console.log(`[MEMORY] ${logMsg}`);
@@ -190,7 +190,7 @@ export function applyProgressiveAdaptation(
   // Rule D: Repeated recovery sessions -> gradually reintroduce activation intensity
   if (
     lastSession.loadScoreAvg < 1.5 &&
-    (wizardConfig.type || "").toLowerCase().includes("recovery")
+    (wizardConfig?.type || "").toLowerCase().includes("recovery")
   ) {
     const logMsg = "Progressive activation restored";
     console.log(`[MEMORY] ${logMsg}`);
