@@ -25,6 +25,15 @@
   h1, h2, h3, h4, h5, h6 {
     @apply font-serif tracking-tight leading-tight;
   }
+
+  /* Mobile WebKit Input Auto-Fill Visibility Fix */
+  input:-webkit-autofill,
+  input:-webkit-autofill:hover, 
+  input:-webkit-autofill:focus, 
+  input:-webkit-autofill:active {
+    -webkit-text-fill-color: currentColor !important;
+    transition: background-color 5000s ease-in-out 0s;
+  }
 }
 
 @layer utilities {

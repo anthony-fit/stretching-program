@@ -3,6 +3,8 @@
  * Secure frontend API client — ALL AI calls go through this layer ONLY.
  * No direct AI SDK usage. No browser-side AI execution.
  */
+import { safeFetch } from '../lib/network/safeFetch';
+import { normalizeAIError } from '../lib/errors/normalizeAIError';
 
 const API_BASE = "/api";
 
@@ -12,24 +14,16 @@ const API_BASE = "/api";
 
 export async function classifyWorkoutIntent(promptText: string) {
   try {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 8000);
-
-    const response = await fetch(`${API_BASE}/classify-intent`, {
+    return await safeFetch(`${API_BASE}/classify-intent`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ promptText }),
-      signal: controller.signal
+      timeoutMs: 15000,
+      retries: 1,
     });
-    
-    clearTimeout(timeoutId);
-
-    if (!response.ok) {
-      throw new Error("Classification failed");
-    }
-
-    return await response.json();
   } catch (error) {
+    const normError = normalizeAIError(error);
+    console.warn("Classification failed, using fallback parser. Error was:", normError);
     // Graceful fallback parser in client just in case
     return fallbackParser(promptText);
   }
@@ -79,18 +73,18 @@ export async function generateCompositionBlueprintViaLLM(
   prefs: any,
   exerciseDatabaseSummary: string,
 ) {
-  const response = await fetch(`${API_BASE}/generate-composition`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ prefs, exerciseDatabaseSummary }),
-  });
-
-  if (!response.ok) {
-    const err = await response.json().catch(() => ({}));
-    throw new Error(err.details || "Composition generation failed");
+  try {
+    return await safeFetch(`${API_BASE}/generate-composition`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ prefs, exerciseDatabaseSummary }),
+      timeoutMs: 25000,
+      retries: 1,
+    });
+  } catch (error) {
+    const err = normalizeAIError(error);
+    throw new Error(err.message);
   }
-
-  return response.json();
 }
 
 // ---------------------------------------------------------------------------
@@ -103,20 +97,18 @@ export async function generateRoutineScript(
   creatorMode?: string,
   context?: any,
 ) {
-  const response = await fetch(`${API_BASE}/generate-script`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ exercises, goal, creatorMode, context }),
-  });
-
-  if (!response.ok) {
-    const err = await response.json().catch(() => ({}));
-    throw new Error(err.details || "Script generation failed");
+  try {
+    return await safeFetch(`${API_BASE}/generate-script`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ exercises, goal, creatorMode, context }),
+      timeoutMs: 20000,
+      retries: 1,
+    });
+  } catch (error) {
+    const err = normalizeAIError(error);
+    throw new Error(err.message);
   }
-
-  const data = await response.json();
-
-  return data;
 }
 
 // ---------------------------------------------------------------------------
@@ -124,18 +116,18 @@ export async function generateRoutineScript(
 // ---------------------------------------------------------------------------
 
 export async function generateAIVideo(prompt: string) {
-  const response = await fetch(`${API_BASE}/generate-video`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ prompt }),
-  });
-
-  if (!response.ok) {
-    const err = await response.json().catch(() => ({}));
-    throw new Error(err.details || "Video generation failed");
+  try {
+    return await safeFetch(`${API_BASE}/generate-video`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ prompt }),
+      timeoutMs: 30000,
+      retries: 1,
+    });
+  } catch (error) {
+    const err = normalizeAIError(error);
+    throw new Error(err.message);
   }
-
-  return response.json();
 }
 
 // ---------------------------------------------------------------------------
@@ -147,18 +139,18 @@ export async function generateSEOMetadata(
   goal: string,
   context?: any,
 ) {
-  const response = await fetch(`${API_BASE}/generate-seo`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ exercises, goal, context }),
-  });
-
-  if (!response.ok) {
-    const err = await response.json().catch(() => ({}));
-    throw new Error(err.details || "SEO metadata generation failed");
+  try {
+    return await safeFetch(`${API_BASE}/generate-seo`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ exercises, goal, context }),
+      timeoutMs: 15000,
+      retries: 1,
+    });
+  } catch (error) {
+    const err = normalizeAIError(error);
+    throw new Error(err.message);
   }
-
-  return response.json();
 }
 
 // ---------------------------------------------------------------------------
@@ -171,16 +163,16 @@ export async function generateSocialCaptions(
   creatorMode?: string,
   context?: any,
 ) {
-  const response = await fetch(`${API_BASE}/generate-social`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ exercises, goal, creatorMode, context }),
-  });
-
-  if (!response.ok) {
-    const err = await response.json().catch(() => ({}));
-    throw new Error(err.details || "Social captions generation failed");
+  try {
+    return await safeFetch(`${API_BASE}/generate-social`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ exercises, goal, creatorMode, context }),
+      timeoutMs: 15000,
+      retries: 1,
+    });
+  } catch (error) {
+    const err = normalizeAIError(error);
+    throw new Error(err.message);
   }
-
-  return response.json();
 }

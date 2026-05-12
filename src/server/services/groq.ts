@@ -19,6 +19,16 @@ export function validateGroqEnvironment(apiKey: string) {
   }
 }
 
+// Add timeout wrapper
+const withTimeout = <T>(promise: Promise<T>, timeoutMs: number): Promise<T> => {
+  return Promise.race([
+    promise,
+    new Promise<T>((_, reject) =>
+      setTimeout(() => reject(new Error(`Worker timeout after ${timeoutMs}ms`)), timeoutMs)
+    ),
+  ]);
+};
+
 export async function generateCompositionBlueprintViaLLM(
   apiKey: string,
   prefs: any,
@@ -76,23 +86,26 @@ export async function generateCompositionBlueprintViaLLM(
     Output strictly as JSON.
   `;
 
-  const chatCompletion = await groq.chat.completions.create({
-    messages: [
-      {
-        role: "system",
-        content:
-          "You are a fitness routine architect. Output exactly JSON, no markdown, no conversational text.",
-      },
-      {
-        role: "user",
-        content: prompt,
-      },
-    ],
-    model: "llama-3.3-70b-versatile",
-    temperature: 0.7,
-    max_tokens: 4000,
-    response_format: { type: "json_object" },
-  });
+  const chatCompletion = await withTimeout(
+    groq.chat.completions.create({
+      messages: [
+        {
+          role: "system",
+          content:
+            "You are a fitness routine architect. Output exactly JSON, no markdown, no conversational text.",
+        },
+        {
+          role: "user",
+          content: prompt,
+        },
+      ],
+      model: "llama-3.3-70b-versatile",
+      temperature: 0.7,
+      max_tokens: 4000,
+      response_format: { type: "json_object" },
+    }),
+    20000 // 20s timeout
+  );
 
   const text = chatCompletion.choices[0]?.message?.content || "[]";
   console.log("LLM RAW OUTPUT:", text);
@@ -158,23 +171,26 @@ export async function generateRoutineScript(
     }
   `;
 
-  const chatCompletion = await groq.chat.completions.create({
-    messages: [
-      {
-        role: "system",
-        content:
-          "You are a fitness scriptwriter. Output exactly JSON, no markdown, no conversational text.",
-      },
-      {
-        role: "user",
-        content: prompt,
-      },
-    ],
-    model: "llama-3.3-70b-versatile",
-    temperature: 0.7,
-    max_tokens: 2000,
-    response_format: { type: "json_object" },
-  });
+  const chatCompletion = await withTimeout(
+    groq.chat.completions.create({
+      messages: [
+        {
+          role: "system",
+          content:
+            "You are a fitness scriptwriter. Output exactly JSON, no markdown, no conversational text.",
+        },
+        {
+          role: "user",
+          content: prompt,
+        },
+      ],
+      model: "llama-3.3-70b-versatile",
+      temperature: 0.7,
+      max_tokens: 2000,
+      response_format: { type: "json_object" },
+    }),
+    15000
+  );
 
   const text = chatCompletion.choices[0]?.message?.content || "{}";
 
@@ -230,23 +246,26 @@ export async function classifyWorkoutIntentViaLLM(
     Return ONLY raw JSON. No markdown formatting.
   `;
 
-  const chatCompletion = await groq.chat.completions.create({
-    messages: [
-      {
-        role: "system",
-        content:
-          "You are an AI that converts natural language workout requests into strict structured JSON. Return exactly JSON, no markdown.",
-      },
-      {
-        role: "user",
-        content: prompt,
-      },
-    ],
-    model: "llama-3.3-70b-versatile",
-    temperature: 0.2,
-    max_tokens: 1000,
-    response_format: { type: "json_object" },
-  });
+  const chatCompletion = await withTimeout(
+    groq.chat.completions.create({
+      messages: [
+        {
+          role: "system",
+          content:
+            "You are an AI that converts natural language workout requests into strict structured JSON. Return exactly JSON, no markdown.",
+        },
+        {
+          role: "user",
+          content: prompt,
+        },
+      ],
+      model: "llama-3.3-70b-versatile",
+      temperature: 0.2,
+      max_tokens: 1000,
+      response_format: { type: "json_object" },
+    }),
+    12000
+  );
 
   const text = chatCompletion.choices[0]?.message?.content || "{}";
 
@@ -291,22 +310,25 @@ export async function generateSEOMetadata(
     Return JSON with: title, description, keywords, ogImage suggestion.
   `;
 
-  const chatCompletion = await groq.chat.completions.create({
-    messages: [
-      {
-        role: "system",
-        content: "You are an SEO expert. Output exactly JSON.",
-      },
-      {
-        role: "user",
-        content: prompt,
-      },
-    ],
-    model: "llama-3.3-70b-versatile",
-    temperature: 0.7,
-    max_tokens: 1000,
-    response_format: { type: "json_object" },
-  });
+  const chatCompletion = await withTimeout(
+    groq.chat.completions.create({
+      messages: [
+        {
+          role: "system",
+          content: "You are an SEO expert. Output exactly JSON.",
+        },
+        {
+          role: "user",
+          content: prompt,
+        },
+      ],
+      model: "llama-3.3-70b-versatile",
+      temperature: 0.7,
+      max_tokens: 1000,
+      response_format: { type: "json_object" },
+    }),
+    12000
+  );
 
   const text = chatCompletion.choices[0]?.message?.content || "{}";
 
@@ -343,22 +365,25 @@ export async function generateSocialCaptions(
     { "caption": "string", "hashtags": ["string"], "hooks": ["string"] }
   `;
 
-  const chatCompletion = await groq.chat.completions.create({
-    messages: [
-      {
-        role: "system",
-        content: "You are a social media manager. Output exactly JSON.",
-      },
-      {
-        role: "user",
-        content: prompt,
-      },
-    ],
-    model: "llama-3.3-70b-versatile",
-    temperature: 0.7,
-    max_tokens: 1000,
-    response_format: { type: "json_object" },
-  });
+  const chatCompletion = await withTimeout(
+    groq.chat.completions.create({
+      messages: [
+        {
+          role: "system",
+          content: "You are a social media manager. Output exactly JSON.",
+        },
+        {
+          role: "user",
+          content: prompt,
+        },
+      ],
+      model: "llama-3.3-70b-versatile",
+      temperature: 0.7,
+      max_tokens: 1000,
+      response_format: { type: "json_object" },
+    }),
+    12000
+  );
 
   const text = chatCompletion.choices[0]?.message?.content || "{}";
 

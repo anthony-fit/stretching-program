@@ -5,7 +5,7 @@ import React, {
   useMemo,
   useCallback,
 } from "react";
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "motion/react";
 import {
   Orchestrator,
@@ -61,6 +61,16 @@ import {
   Music,
   Share2,
 } from "lucide-react";
+import { streakEngine } from "../features/athlete/services/streakEngine";
+import { snapshotManager } from "../features/athlete-memory/services/snapshotManager";
+
+import { recoveryInsightService } from "../features/recovery/services/recoveryInsightService";
+import { generateAdaptiveDNA } from "../features/athlete-memory/services/adaptiveProfileEngine";
+import { analyzeWeeklyEvolution } from "../features/athlete-memory/analytics/weeklyEvolutionAnalyzer";
+import { buildAdaptiveStudioBootstrap } from "../features/athlete-memory/services/buildAdaptiveStudioBootstrap";
+import { calculateSessionConfidence } from "../features/athlete-memory/services/sessionConfidenceEngine";
+import { AdaptiveRecommendationCard } from "../features/athlete-memory/components/AdaptiveRecommendationCard";
+import { SessionConfidenceCard } from "../features/athlete-memory/components/SessionConfidenceCard";
 
 const TimeObserver = React.memo(
   ({
@@ -643,6 +653,8 @@ const Skeleton = ({ className }: { className?: string }) => (
 
 export default function VideoStudioPage() {
   const location = useLocation();
+  const navigate = useNavigate();
+  const [pendingConfirm, setPendingConfirm] = useState<{ message: string; onConfirm: () => void } | null>(null);
   // Safe ID generator
   const generateId = useCallback(() => {
     try {
@@ -709,6 +721,11 @@ export default function VideoStudioPage() {
   const [transitionStyle, setTransitionStyle] = useState<
     "none" | "subtle" | "medium"
   >("subtle");
+
+  // Athlete Memory State
+  const [athleteDNA, setAthleteDNA] = useState<any>(null);
+  const [evolutionMetrics, setEvolutionMetrics] = useState<any>(null);
+  const [bootstrapPresets, setBootstrapPresets] = useState<any>(null);
   const [activeCreatorMode, setActiveCreatorMode] =
     useState<CreatorModeId | null>(null);
   const [hookTitle, setHookTitle] = useState("");
@@ -1664,8 +1681,70 @@ export default function VideoStudioPage() {
   }, [activeProgram]);
   const AUTOSAVE_KEY = "video_studio_autosave_v1";
 
+  // Bootstrap Adaptive Studio Memory
+  useEffect(() => {
+    async function loadBootstrap() {
+      const history = await snapshotManager.getAthleteHistory();
+      const dna = generateAdaptiveDNA(history);
+      const evolution = analyzeWeeklyEvolution(history);
+      
+      const recovery = await recoveryInsightService.getReadinessState();
+      
+      const presets = buildAdaptiveStudioBootstrap(
+        history.length > 0 ? dna : null, 
+        recovery
+      );
+      
+      setAthleteDNA(history.length > 0 ? dna : null);
+      setEvolutionMetrics(history.length > 0 ? evolution : null);
+      setBootstrapPresets(presets);
+      
+      // Auto-populate based on presets if no overriding location state
+      if (!location.state || !(location.state as any).athleteRecommendation) {
+        if (presets.recommendedStyle === 'wellness') {
+           setVibe('minimal');
+           setTransitionStyle('subtle');
+        } else if (presets.recommendedStyle === 'technical') {
+           setVibe('technical');
+           setTransitionStyle('medium');
+        } else if (presets.recommendedStyle === 'high-energy') {
+           setVibe('high-energy');
+           setTransitionStyle('medium');
+        }
+
+        setWizardConfig(prev => ({
+          ...prev,
+          duration: (presets.recommendedDuration * 60).toString(),
+          focus: presets.recommendedFocus,
+          intensity: presets.recommendedIntensity as any,
+          coachingStyle: presets.recommendedCoachTone,
+        }));
+      }
+    }
+    loadBootstrap();
+  }, []);
+
   // 1. Restore on Mount
   useEffect(() => {
+    // Check for athlete recommendation state
+    if (location.state && (location.state as any).athleteRecommendation) {
+      const rec = (location.state as any).athleteRecommendation;
+      console.log("[ATHLETE] Processing recommendation handoff:", rec);
+      
+      // Auto-configure Wizard based on recommendation
+      if (rec.recommendedFocus === 'Recovery') {
+        setVibe('minimal');
+        setTransitionStyle('subtle');
+        const wellnessMode = CREATOR_MODES.find(m => m.id === 'wellness');
+        if (wellnessMode) applyCreatorMode('wellness');
+      } else if (rec.recommendedFocus === 'Performance') {
+        setVibe('high-energy');
+        setTransitionStyle('medium');
+        const technicalMode = CREATOR_MODES.find(m => m.id === 'explainer');
+        if (technicalMode) applyCreatorMode('explainer');
+      }
+    }
+
     try {
       const saved = localStorage.getItem(AUTOSAVE_KEY);
       if (saved) {
@@ -1869,20 +1948,20 @@ export default function VideoStudioPage() {
   ]);
 
   const clearProject = () => {
-    if (
-      window.confirm(
-        "Are you sure you want to completely clear your project? This cannot be undone.",
-      )
-    ) {
-      localStorage.removeItem(AUTOSAVE_KEY);
-      setStoryboard([]);
-      setAiScript([]);
-      setSeoMetadata(null);
-      setSocialCaptions(null);
-      setShowWizard(true);
-      Orchestrator.seekToScene(0, 0);
-      setActiveTab("assets");
-    }
+    setPendingConfirm({
+      message: "Are you sure you want to completely clear your project? This cannot be undone.",
+      onConfirm: () => {
+        setPendingConfirm(null);
+        localStorage.removeItem(AUTOSAVE_KEY);
+        setStoryboard([]);
+        setAiScript([]);
+        setSeoMetadata(null);
+        setSocialCaptions(null);
+        setShowWizard(true);
+        Orchestrator.seekToScene(0, 0);
+        setActiveTab("assets");
+      }
+    });
   };
   // -------------------------
 
@@ -3931,6 +4010,18 @@ export default function VideoStudioPage() {
 
   const completeWorkout = useCallback(() => {
     if (storyboard.length === 0) return;
+    
+    // Increment mobility streak in athlete system
+    streakEngine.incrementMobilityStreak();
+    
+    // Track memory
+    const durationMins = Math.floor(storyboard.reduce((acc, curr) => acc + curr.duration, 0) / 60);
+    snapshotManager.takeDailySnapshot({
+      sessionCompleted: true,
+      sessionDuration: durationMins,
+      preferredVibe: vibe,
+    });
+
     const newReport: WorkoutReport = {
       id: generateId(),
       userId: "anonymous",
@@ -5187,6 +5278,12 @@ export default function VideoStudioPage() {
       )}
     </button>
   );
+
+  // Compute Confidence
+  const sessionConfidence = useMemo(() => {
+    const dur = parseInt(wizardConfig.duration || "60") / 60;
+    return calculateSessionConfidence(dur, athleteDNA, evolutionMetrics);
+  }, [wizardConfig.duration, athleteDNA, evolutionMetrics]);
 
   return (
     <>
@@ -6589,24 +6686,21 @@ export default function VideoStudioPage() {
             {/* Top Control Bar */}
             <div className="sticky top-0 z-50 h-14 md:h-20 border-b border-cream/10 flex items-center justify-between px-3 md:px-8 bg-charcoal/80 overflow-x-auto no-scrollbar shrink-0 backdrop-blur-xl">
               <div className="flex items-center gap-3 md:gap-6 flex-shrink-0">
-                <Link
-                  to="/"
-                  onClick={(e) => {
+                <button
+                  onClick={() => {
                     const isExporting =
                       exportState === "preparing" ||
                       exportState === "rendering" ||
                       exportState === "packaging";
                     if (isExporting) {
-                      if (!window.confirm("An export is in progress. Are you sure you want to leave the Studio?")) {
-                        e.preventDefault();
-                      }
+                      setPendingConfirm({ message: "An export is in progress. Are you sure you want to leave the Studio?", onConfirm: () => navigate("/") });
                       return;
                     }
                     if (storyboard.length > 0) {
-                      if (!window.confirm("You have an active studio session. Leaving will lose any unsaved orchestrations. Return to home?")) {
-                        e.preventDefault();
-                      }
+                      setPendingConfirm({ message: "You have an active studio session. Leaving will lose any unsaved orchestrations. Return to home?", onConfirm: () => navigate("/") });
+                      return;
                     }
+                    navigate("/");
                   }}
                   className="flex items-center gap-2 group mr-1 md:mr-2 shrink-0 transition-opacity hover:opacity-80"
                 >
@@ -6614,7 +6708,39 @@ export default function VideoStudioPage() {
                   <span className="hidden lg:block font-serif italic text-cream font-medium tracking-tight text-sm">
                     Stretching Pro
                   </span>
-                </Link>
+                </button>
+                <div className="w-px h-6 bg-cream/10 hidden md:block" />
+
+                <nav className="flex items-center gap-3 md:gap-4 flex-shrink-0">
+                  {[
+                    { label: 'Dashboard', path: '/dashboard', className: 'text-gold hover:text-white' },
+                    { label: 'Nutrition', path: '/nutrition', className: 'text-cream/40 hover:text-gold' },
+                    { label: 'Recovery', path: '/recovery', className: 'text-cream/40 hover:text-gold' }
+                  ].map((item) => (
+                    <button 
+                      key={item.path}
+                      onClick={() => {
+                        const isExporting =
+                          exportState === "preparing" ||
+                          exportState === "rendering" ||
+                          exportState === "packaging";
+                        if (isExporting) {
+                          setPendingConfirm({ message: "An export is in progress. Are you sure you want to leave the Studio?", onConfirm: () => navigate(item.path) });
+                          return;
+                        }
+                        if (storyboard.length > 0) {
+                          setPendingConfirm({ message: `You have an active studio session. Leaving will lose any unsaved orchestrations. Proceed to ${item.label}?`, onConfirm: () => navigate(item.path) });
+                          return;
+                        }
+                        navigate(item.path);
+                      }}
+                      className={`text-[8px] md:text-[10px] font-black uppercase tracking-widest transition-colors whitespace-nowrap ${item.className}`}
+                    >
+                      {item.label}
+                    </button>
+                  ))}
+                </nav>
+
                 <div className="w-px h-6 bg-cream/10 hidden md:block" />
 
                 <div className="flex items-center bg-cream/5 rounded-lg p-0.5 md:p-1 border border-cream/10">
@@ -7508,6 +7634,41 @@ export default function VideoStudioPage() {
       `,
           }}
         />
+
+        <AnimatePresence>
+          {pendingConfirm && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4"
+            >
+              <motion.div
+                initial={{ scale: 0.95, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                exit={{ scale: 0.95, opacity: 0 }}
+                className="bg-[#111] border border-white/10 p-6 md:p-8 rounded-2xl max-w-sm w-full shadow-2xl flex flex-col gap-6"
+              >
+                <h3 className="text-cream text-lg font-bold">Please Confirm</h3>
+                <p className="text-cream/70 text-sm">{pendingConfirm.message}</p>
+                <div className="flex items-center gap-3 mt-2">
+                  <button
+                    onClick={() => setPendingConfirm(null)}
+                    className="flex-1 px-4 py-3 bg-white/5 hover:bg-white/10 text-white font-medium rounded-xl transition-colors text-sm"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={pendingConfirm.onConfirm}
+                    className="flex-1 px-4 py-3 bg-gold hover:bg-white text-charcoal font-bold rounded-xl transition-colors text-sm"
+                  >
+                    Proceed
+                  </button>
+                </div>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </motion.div>
     </>
   );

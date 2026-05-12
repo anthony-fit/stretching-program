@@ -19,6 +19,7 @@ class ObservabilityEngine {
   private readonly windowSize = 60; // Rolling window of frame durations
   private isObserving = false;
   private rafId: number | null = null;
+  private startTime = 0;
   
   // Real-time internal metrics (not for UI/analytics)
   public metrics = {
@@ -40,7 +41,10 @@ class ObservabilityEngine {
   public start() {
     if (this.isObserving || typeof window === 'undefined') return;
     this.isObserving = true;
+    this.startTime = performance.now();
     this.lastTime = performance.now();
+    this.deltaWindow = [];
+    this.frameCount = 0;
     this.observeLoop();
     this.initLongTaskObserver();
     
@@ -80,6 +84,13 @@ class ObservabilityEngine {
 
   private observeLoop = () => {
     if (!this.isObserving) return;
+
+    // Gated explicit exit: Stop RAF loop after 10s to allow AI Studio idle validation
+    if (performance.now() - this.startTime > 10000) {
+      console.debug('[OS Layer] Observability Engine auto-paused to allow system idle.');
+      this.isObserving = false;
+      return;
+    }
 
     const now = performance.now();
     const delta = now - this.lastTime;
@@ -161,6 +172,25 @@ export const RuntimeObserver = new ObservabilityEngine();
 export function useRuntimeObservability() {
   useEffect(() => {
     RuntimeObserver.start();
-    return () => RuntimeObserver.stop();
+    
+    // Ensure cleanup of visibility listeners if any, and stop observer on unmount
+    const handleVisibility = () => {
+      if (typeof document !== 'undefined' && document.hidden) {
+        RuntimeObserver.stop();
+      } else {
+        RuntimeObserver.start();
+      }
+    };
+    
+    if (typeof document !== 'undefined') {
+      document.addEventListener('visibilitychange', handleVisibility);
+    }
+    
+    return () => {
+      RuntimeObserver.stop();
+      if (typeof document !== 'undefined') {
+        document.removeEventListener('visibilitychange', handleVisibility);
+      }
+    };
   }, []);
 }
