@@ -14,6 +14,7 @@ import {
 } from "../lib/runtime/orchestrator";
 import { RuntimeObserver } from "../lib/runtime/observability";
 import { resolveVerifiedExercise } from "../utils/matchExercise";
+import { Logo } from "../components/Logo";
 import {
   Play,
   Pause,
@@ -5294,15 +5295,19 @@ export default function VideoStudioPage() {
                 <div className="relative z-10 flex flex-col h-full">
                   {/* Top Branding */}
                   <div className="mb-16">
-                    <motion.div
-                      initial={{ scale: 0.8, opacity: 0 }}
-                      animate={{ scale: 1, opacity: 1 }}
-                      transition={{ ...transitionClasses.system, delay: 0.2 }}
-                      className="w-12 h-12 bg-gold/10 border border-gold/20 rounded-2xl flex items-center justify-center mb-8 relative overflow-hidden"
-                    >
-                      <div className="absolute inset-0 bg-gold/10" />
-                      <Sparkles className="w-5 h-5 text-gold relative z-10" />
-                    </motion.div>
+                    <Link to="/" className="inline-block mb-8 group relative z-50">
+                      <motion.div
+                        initial={{ scale: 0.8, opacity: 0 }}
+                        animate={{ scale: 1, opacity: 1 }}
+                        transition={{ ...transitionClasses.system, delay: 0.2 }}
+                        className="flex items-center gap-3 transition-opacity group-hover:opacity-80"
+                      >
+                        <Logo size="md" light iconOnly />
+                        <span className="font-serif italic text-cream font-medium tracking-tight text-xl hidden md:block">
+                          Stretching Pro
+                        </span>
+                      </motion.div>
+                    </Link>
 
                     <motion.h2
                       initial={{ y: 20, opacity: 0 }}
@@ -6584,6 +6589,34 @@ export default function VideoStudioPage() {
             {/* Top Control Bar */}
             <div className="sticky top-0 z-50 h-14 md:h-20 border-b border-cream/10 flex items-center justify-between px-3 md:px-8 bg-charcoal/80 overflow-x-auto no-scrollbar shrink-0 backdrop-blur-xl">
               <div className="flex items-center gap-3 md:gap-6 flex-shrink-0">
+                <Link
+                  to="/"
+                  onClick={(e) => {
+                    const isExporting =
+                      exportState === "preparing" ||
+                      exportState === "rendering" ||
+                      exportState === "packaging";
+                    if (isExporting) {
+                      if (!window.confirm("An export is in progress. Are you sure you want to leave the Studio?")) {
+                        e.preventDefault();
+                      }
+                      return;
+                    }
+                    if (storyboard.length > 0) {
+                      if (!window.confirm("You have an active studio session. Leaving will lose any unsaved orchestrations. Return to home?")) {
+                        e.preventDefault();
+                      }
+                    }
+                  }}
+                  className="flex items-center gap-2 group mr-1 md:mr-2 shrink-0 transition-opacity hover:opacity-80"
+                >
+                  <Logo size="sm" light iconOnly />
+                  <span className="hidden lg:block font-serif italic text-cream font-medium tracking-tight text-sm">
+                    Stretching Pro
+                  </span>
+                </Link>
+                <div className="w-px h-6 bg-cream/10 hidden md:block" />
+
                 <div className="flex items-center bg-cream/5 rounded-lg p-0.5 md:p-1 border border-cream/10">
                   {[
                     {
