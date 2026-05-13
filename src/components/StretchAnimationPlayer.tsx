@@ -502,10 +502,17 @@ export default function StretchAnimationPlayer({
         {gifUrl ? (
           <>
             {imageUrls.length > 1 ? (
-              imageUrls.map((url, index) => (
+              <>
+                {/* Preload layer: completely invisible but forces browser cache */}
+                <div className="absolute opacity-0 pointer-events-none w-[1px] h-[1px] overflow-hidden">
+                  {imageUrls.map((url) => (
+                    <img key={`preload-${url}`} src={url} alt="preload" />
+                  ))}
+                </div>
+                {/* Playback layer: strict single frame rendering */}
                 <img
-                  key={url}
-                  src={url}
+                  key="playback"
+                  src={dynamicGifUrl || undefined}
                   alt={searchTerm}
                   referrerPolicy="no-referrer"
                   onLoad={(e) => {
@@ -517,11 +524,11 @@ export default function StretchAnimationPlayer({
                     setGifUrl(null);
                     setImageUrls([]);
                   }}
-                  className={`absolute inset-0 w-full h-full object-contain transition-all duration-[1500ms] ease-in-out ${
-                    isLoaded ? (frame - 1 === index ? 'opacity-100' : 'opacity-0') : 'opacity-0'
+                  className={`absolute inset-0 w-full h-full object-contain transition-none ${
+                    isLoaded ? 'opacity-100' : 'opacity-0'
                   } ${hideControls ? 'contrast-125 saturate-0 sepia-[.3] hue-rotate-[10deg] invert brightness-[0.8] opacity-60 mix-blend-screen [filter:drop-shadow(0_0_8px_rgba(255,215,0,0.4))]' : 'mix-blend-multiply'}`}
                 />
-              ))
+              </>
             ) : (
               <img
                 src={dynamicGifUrl || undefined}
@@ -562,13 +569,9 @@ export default function StretchAnimationPlayer({
             />
           </div>
         ) : (
-          <motion.img
-            key={isPreparing ? 'prep' : frameSrc}
+          <img
             src={isPreparing ? `${framesBasePath}/frame_001.webp` : frameSrc}
             alt="Stretch Visualization"
-            initial={{ opacity: 0.8 }}
-            animate={{ opacity: 1 }}
-            transition={{ duration: 0.2 }}
             onLoad={(e) => {
               setIsLoaded(true);
               setHasError(false);
@@ -586,7 +589,7 @@ export default function StretchAnimationPlayer({
                 setTimeout(() => { setIsLoaded(true); setIsFullyBroken(true); }, 0);
               }
             }}
-            className={`w-full h-full object-contain transition-all duration-300 ${isLoaded ? 'opacity-100' : 'opacity-0'} ${hideControls ? 'contrast-125 saturate-0 sepia-[.3] hue-rotate-[10deg] invert brightness-[0.8] opacity-60 mix-blend-screen [filter:drop-shadow(0_0_8px_rgba(255,215,0,0.4))]' : 'mix-blend-multiply'}`}
+            className={`w-full h-full object-contain transition-none ${isLoaded ? 'opacity-100' : 'opacity-0'} ${hideControls ? 'contrast-125 saturate-0 sepia-[.3] hue-rotate-[10deg] invert brightness-[0.8] opacity-60 mix-blend-screen [filter:drop-shadow(0_0_8px_rgba(255,215,0,0.4))]' : 'mix-blend-multiply'}`}
           />
         )}
       </motion.div>
