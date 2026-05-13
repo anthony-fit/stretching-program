@@ -261,10 +261,10 @@ const SubtitleOverlay = React.memo(
           animate={{ opacity: 1, y: 0, scale: 1 }}
           exit={{ opacity: 0, y: -5, scale: 0.98 }}
           transition={{ duration: 0.15 }}
-          className={`absolute w-full px-8 pointer-events-none z-30 flex items-center justify-center ${subtitlePosition === "bottom" ? "bottom-8 md:bottom-12" : "top-8 md:top-12"}`}
+          className={`absolute w-full px-4 sm:px-8 pointer-events-none z-30 flex items-center justify-center ${subtitlePosition === "bottom" ? "bottom-24 md:bottom-16" : "top-20 md:top-16"}`}
         >
           <span
-            className={`text-center font-bold tracking-tight px-4 py-2 backdrop-blur-sm shadow-xl transition-all duration-500 ${currentSubtitle.coachStyle.font} ${currentSubtitle.coachStyle.background} ${
+            className={`inline-block w-full max-w-[90%] sm:max-w-[80%] text-center font-bold tracking-tight px-4 sm:px-6 py-2 sm:py-3 text-balance break-words backdrop-blur-sm shadow-xl transition-all duration-500 ${currentSubtitle.coachStyle.font} ${currentSubtitle.coachStyle.background} ${
               subtitleStyle === "bold"
                 ? "font-black italic tracking-tighter uppercase rounded-sm border-2 border-charcoal"
                 : subtitleStyle === "minimal"
@@ -2956,6 +2956,32 @@ export default function VideoStudioPage() {
         });
       }); // This closes `storyboard.map(...)`
       await Promise.all(loadPromises);
+      
+      // Generate TTS for export compositing
+      try {
+        const { ttsProvider } = await import("../lib/ttsService");
+        const ttsPromises = storyboard.map(async (item) => {
+          if (audioPreloadMap.current.has(item.id)) return;
+          const sceneScript = aiScript.find(
+            (s: any) =>
+              s.exerciseName?.trim().toLowerCase() ===
+              item.name?.trim().toLowerCase()
+          );
+          if (sceneScript?.script) {
+            console.log("Generating TTS for:", item.name);
+            const asset = await ttsProvider.synthesize(sceneScript.script);
+            if (asset && asset.url) {
+              const audio = new Audio(asset.url);
+              audio.crossOrigin = "anonymous";
+              audioPreloadMap.current.set(item.id, audio);
+            }
+          }
+        });
+        await Promise.all(ttsPromises);
+      } catch (err) {
+        console.warn("[Export] TTS generation failed", err);
+      }
+      
     } catch (error) {
       console.warn("[Export Status] Preloading encountered an error:", error);
     }
@@ -3151,6 +3177,7 @@ export default function VideoStudioPage() {
     mr.start(1000); // 1-second chunks to reduce memory array overhead vs 100ms chunks
 
     const msPerFrame = 1000 / exportFPS;
+    let lastPlayedTtsIndex = -1;
 
     const renderLoop = () => {
       const parentState = studioStateRef.current;
@@ -3172,6 +3199,29 @@ export default function VideoStudioPage() {
       const nextTimeState = Orchestrator.timeState;
       state.currentTime = nextTimeState.localTime;
       state.activeItemIndex = nextTimeState.activeSceneIndex;
+
+      if (state.activeItemIndex !== lastPlayedTtsIndex) {
+        lastPlayedTtsIndex = state.activeItemIndex;
+        const currentItem = state.storyboard[state.activeItemIndex];
+        if (currentItem) {
+          const audio = audioPreloadMap.current.get(currentItem.id);
+          if (audio && audioContextRef.current) {
+            const ctx = audioContextRef.current;
+            if (!(audio as any).__connectedToExport) {
+              try {
+                const source = ctx.createMediaElementSource(audio);
+                source.connect(ctx.destination);
+                if (audioDestinationRef.current) {
+                  source.connect(audioDestinationRef.current);
+                }
+                (audio as any).__connectedToExport = true;
+              } catch(e) {}
+            }
+            audio.currentTime = 0;
+            audio.play().catch(e => console.warn("TTS playback err:", e));
+          }
+        }
+      }
 
       // Update render progress decoupled from DOM update max rate
       const currProg =
@@ -7329,8 +7379,8 @@ export default function VideoStudioPage() {
                                 }}
                                 className="absolute inset-0 z-50 flex items-center justify-center p-8 pointer-events-none"
                               >
-                                <div className="bg-gold text-charcoal px-8 py-4 shadow-[10px_10px_0px_0px_rgba(0,0,0,1)] border-4 border-charcoal transform -rotate-1">
-                                  <h1 className="text-3xl md:text-6xl font-black italic leading-none tracking-tighter uppercase">
+                                <div className="bg-gold text-charcoal px-6 md:px-8 py-3 md:py-4 shadow-[10px_10px_0px_0px_rgba(0,0,0,1)] border-4 border-charcoal transform -rotate-1 max-w-[90%] md:max-w-[80%] text-center">
+                                  <h1 className="text-2xl sm:text-3xl md:text-5xl lg:text-6xl font-black italic leading-tight tracking-tighter uppercase break-words text-balance text-center">
                                     {hookTitle}
                                   </h1>
                                 </div>
