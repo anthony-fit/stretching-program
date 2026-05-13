@@ -1644,7 +1644,10 @@ export default function VideoStudioPage() {
     const activeCoach =
       COACH_PROFILES.find((c) => c.id === wizardConfig.selectedCoachId) ||
       COACH_PROFILES[0];
-    const currentPhase = activeProgram.phases[activeProgram.currentPhaseIndex];
+    const currentPhase =
+      activeProgram?.phases?.[activeProgram.currentPhaseIndex] ||
+      activeProgram?.phases?.[0] ||
+      { name: "Foundation Phase", type: "Core", priorityFocus: [], intensityTarget: "Low", durationWeeks: 4 };
     return calculateAtmosphere(
       currentProgression,
       readiness,
@@ -4089,10 +4092,10 @@ export default function VideoStudioPage() {
       const workoutsInProgram = workoutReports.length + 1;
       if (
         workoutsInProgram >= 10 &&
-        activeProgram.currentPhaseIndex < activeProgram.phases.length - 1
+        activeProgram.currentPhaseIndex < (activeProgram?.phases?.length || 1) - 1
       ) {
         setShowPhaseComplete(
-          activeProgram.phases[activeProgram.currentPhaseIndex].name,
+          activeProgram?.phases?.[activeProgram.currentPhaseIndex]?.name || "Phase",
         );
         setActiveProgram((prev) =>
           prev
@@ -4115,7 +4118,10 @@ export default function VideoStudioPage() {
   const renderedProgressionTab = useMemo(() => {
     if (!currentProgression || !activeProgram) return null;
     const readiness = calculateReadiness(currentProgression);
-    const currentPhase = activeProgram.phases[activeProgram.currentPhaseIndex];
+    const currentPhase =
+      activeProgram?.phases?.[activeProgram.currentPhaseIndex] ||
+      activeProgram?.phases?.[0] ||
+      { name: "Foundation Phase", type: "Core", priorityFocus: [], intensityTarget: "Low", durationWeeks: 4 };
     const activeCoach =
       COACH_PROFILES.find((c) => c.id === wizardConfig.selectedCoachId) ||
       COACH_PROFILES[0];
@@ -4473,7 +4479,7 @@ export default function VideoStudioPage() {
                     </div>
                     <span className="text-[9px] font-bold text-white/40 uppercase">
                       Phase {activeProgram.currentPhaseIndex + 1}/
-                      {activeProgram.phases.length}
+                      {activeProgram?.phases?.length || 1}
                     </span>
                   </div>
 
@@ -4487,9 +4493,9 @@ export default function VideoStudioPage() {
                   <div className="space-y-3">
                     <div className="flex items-center justify-between text-[9px] font-bold">
                       <span className="text-white/60">
-                        Current: {currentPhase.name}
+                        Current: {currentPhase?.name || "Foundation"}
                       </span>
-                      <span className="text-gold">{currentPhase.type}</span>
+                      <span className="text-gold">{currentPhase?.type || "Core"}</span>
                     </div>
                     <div className="h-1.5 bg-white/5 rounded-full overflow-hidden">
                       <div
@@ -4737,7 +4743,7 @@ export default function VideoStudioPage() {
                 </div>
                 <span className="text-[9px] font-bold text-white/40 uppercase">
                   Phase {activeProgram.currentPhaseIndex + 1}/
-                  {activeProgram.phases.length}
+                  {activeProgram?.phases?.length || 1}
                 </span>
               </div>
 
@@ -4751,9 +4757,9 @@ export default function VideoStudioPage() {
               <div className="space-y-3">
                 <div className="flex items-center justify-between text-[9px] font-bold">
                   <span className="text-white/60">
-                    Current: {currentPhase.name}
+                    Current: {currentPhase?.name || "Foundation"}
                   </span>
-                  <span className="text-gold">{currentPhase.type}</span>
+                  <span className="text-gold">{currentPhase?.type || "Core"}</span>
                 </div>
                 <div className="h-1.5 bg-white/5 rounded-full overflow-hidden">
                   <div
@@ -7142,8 +7148,8 @@ export default function VideoStudioPage() {
                         className="absolute inset-0"
                       >
                         <StretchAnimationPlayer
-                          exPath={`/animations/${storyboard[activeItemIndex].name.toLowerCase().replace(/ /g, "_")}`}
-                          exName={storyboard[activeItemIndex].name}
+                          exPath={`/animations/${(storyboard[activeItemIndex] || storyboard[0]).name.toLowerCase().replace(/ /g, "_")}`}
+                          exName={(storyboard[activeItemIndex] || storyboard[0]).name}
                           isPlaying={!isPaused}
                           hideControls={true}
                           framingMode={framingMode}
@@ -7186,7 +7192,7 @@ export default function VideoStudioPage() {
                     {/* Overlays for Video Content - Vibe Dependent */}
                     <AnimatePresence mode="wait">
                       <motion.div
-                        key={`${storyboard[activeItemIndex].instanceId}-${vibe}`}
+                        key={`${(storyboard[activeItemIndex] || storyboard[0]).instanceId}-${vibe}`}
                         initial={{ opacity: 0, scale: 0.98 }}
                         animate={{ opacity: 1, scale: 1 }}
                         exit={{ opacity: 0, scale: 1.02 }}
@@ -7204,18 +7210,18 @@ export default function VideoStudioPage() {
                                     Live Proc
                                   </span>
                                   <span className="bg-charcoal text-cream/80 text-[7px] md:text-[9px] font-black px-2 py-0.5 rounded-full uppercase tracking-[0.2em] hidden md:inline">
-                                    ID: {storyboard[activeItemIndex].id}
+                                    ID: {(storyboard[activeItemIndex] || storyboard[0]).id}
                                   </span>
                                 </div>
                               )}
                               <h2
                                 className={`font-serif italic leading-[1.1] text-charcoal/90 drop-shadow-sm transition-all ${vibe === "minimal" ? "text-xl md:text-3xl font-medium" : "text-2xl md:text-4xl font-bold"}`}
                               >
-                                {storyboard[activeItemIndex].name}
+                                {(storyboard[activeItemIndex] || storyboard[0]).name}
                               </h2>
                               {vibe !== "minimal" && (
                                 <p className="text-charcoal/30 text-[8px] md:text-[10px] font-black uppercase tracking-[0.3em]">
-                                  {storyboard[activeItemIndex].category} •
+                                  {(storyboard[activeItemIndex] || storyboard[0]).category} •
                                   Module
                                 </p>
                               )}
@@ -7238,7 +7244,7 @@ export default function VideoStudioPage() {
                                   Instructions
                                 </p>
                                 <p className="text-charcoal/80 text-[9px] md:text-xs font-medium leading-relaxed bg-white/30 backdrop-blur-sm p-3 rounded-xl border border-white/40 shadow-sm line-clamp-3">
-                                  {storyboard[activeItemIndex].description}
+                                  {(storyboard[activeItemIndex] || storyboard[0]).description}
                                 </p>
                               </div>
                             </div>

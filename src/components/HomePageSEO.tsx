@@ -70,7 +70,7 @@ export function HomePageSEO() {
                 These free programs guide you through every body stretch safely. They remind you to keep your back straight and breathe evenly. This regular stretching reduces lower back pain and improves athletic performance.
               </p>
             </div>
-            <img src="https://images.unsplash.com/photo-1517836357463-d25dfeac3438?q=80&w=800&auto=format&fit=crop" alt="Person using a free workout app on their phone at the gym" className="rounded-2xl mt-8 w-full h-48 object-cover filter brightness-95 group-hover:brightness-100 transition-all duration-500" />
+            <img src="https://images.unsplash.com/photo-1517836357463-d25dfeac3438?auto=format&fit=crop&q=80&w=800" alt="Person using a free workout app on their phone at the gym" className="rounded-2xl mt-8 w-full h-48 object-cover filter brightness-95 group-hover:brightness-100 transition-all duration-500" />
           </motion.div>
         </section>
 
@@ -110,7 +110,7 @@ export function HomePageSEO() {
                 Daily stretching also calms the mind and relieves stress. You can reduce your risk of strains by ensuring your muscles are pliable. Maintaining a full range of motion prevents age-related stiffness and lower back pain.
               </p>
             </div>
-            <img src="https://images.unsplash.com/photo-1544367567-0f2fcb009e0b?q=80&w=1200&h=400&auto=format&fit=crop" alt="Person experiencing the calm and physical benefits of daily stretching" className="rounded-[2rem] shadow-xl mt-8 w-full h-[300px] object-cover hover:shadow-2xl transition-shadow translate-y-0 hover:-translate-y-2 duration-500" />
+            <img src="https://images.unsplash.com/photo-1544367567-0f2fcb009e0b?auto=format&fit=crop&q=80&w=1200" alt="Person experiencing the calm and physical benefits of daily stretching" className="rounded-[2rem] shadow-xl mt-8 w-full h-[300px] object-cover hover:shadow-2xl transition-shadow translate-y-0 hover:-translate-y-2 duration-500" />
           </motion.div>
 
           <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: 0.2 }}>
@@ -123,7 +123,7 @@ export function HomePageSEO() {
                 The <a href="https://www.mayoclinic.org/healthy-lifestyle/fitness/multimedia/hamstring-stretch/vid-20084683" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:text-blue-800 underline transition-colors">Mayo Clinic — Hamstring stretch</a> demonstrates how to safely stretch this vital muscle group. Do not force the movement; securely hold the stretch for 30 seconds and repeat on the other side. This stretch greatly assists in reducing the risk of injury.
               </p>
             </div>
-            <img src="https://images.unsplash.com/photo-1511632765486-a01980e01a18?q=80&w=1200&h=400&auto=format&fit=crop" alt="A person sitting on a mat performing a proper hamstring stretch" className="rounded-[2rem] shadow-xl mt-8 w-full h-[300px] object-cover hover:shadow-2xl transition-shadow translate-y-0 hover:-translate-y-2 duration-500" />
+            <img src="https://images.unsplash.com/photo-1511632765486-a01980e01a18?auto=format&fit=crop&q=80&w=1200" alt="A person sitting on a mat performing a proper hamstring stretch" className="rounded-[2rem] shadow-xl mt-8 w-full h-[300px] object-cover hover:shadow-2xl transition-shadow translate-y-0 hover:-translate-y-2 duration-500" />
           </motion.div>
         </section>
 
