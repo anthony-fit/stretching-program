@@ -2,16 +2,39 @@
 <html lang="en">
 
 <head>
-  <script data-cfasync="false" src="https://cmp.gatekeeperconsent.com/min.js"></script>
-  <script data-cfasync="false" src="https://the.gatekeeperconsent.com/cmp.min.js"></script>
-  <script async src="//www.ezojs.com/ezoic/sa.min.js"></script>
   <script>
-    window.ezstandalone = window.ezstandalone || {};
-    ezstandalone.cmd = ezstandalone.cmd || [];
+    (function() {
+      var isSandboxed = false;
+      try {
+        isSandboxed = window.self !== window.top;
+      } catch (e) {
+        isSandboxed = true;
+      }
+      
+      window.ezstandalone = window.ezstandalone || {};
+      window.ezstandalone.cmd = window.ezstandalone.cmd || [];
+      
+      if (!isSandboxed) {
+        var scripts = [
+          { src: "https://cmp.gatekeeperconsent.com/min.js", attr: { "data-cfasync": "false" } },
+          { src: "https://the.gatekeeperconsent.com/cmp.min.js", attr: { "data-cfasync": "false" } },
+          { src: "//www.ezojs.com/ezoic/sa.min.js", attr: { async: true } },
+          { src: "//ezoicanalytics.com/analytics.js", attr: {} },
+          { src: "https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-4631760617397774", attr: { async: true, crossorigin: "anonymous" } }
+        ];
+
+        scripts.forEach(function(sc) {
+          var s = document.createElement("script");
+          s.src = sc.src;
+          for (var key in sc.attr) {
+            if (sc.attr[key] === true) s[key] = true;
+            else s.setAttribute(key, sc.attr[key]);
+          }
+          document.head.appendChild(s);
+        });
+      }
+    })();
   </script>
-  <script src="//ezoicanalytics.com/analytics.js"></script>
-  <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-4631760617397774"
-    crossorigin="anonymous"></script>
   <meta charset="UTF-8" />
   <meta name="viewport"
     content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, interactive-widget=resizes-content" />

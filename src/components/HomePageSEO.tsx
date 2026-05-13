@@ -58,6 +58,7 @@ export function HomePageSEO() {
                 A <a href="https://www.health.harvard.edu/staying-healthy/the-ideal-stretching-routine" target="_blank" rel="noopener noreferrer" className="text-gold hover:text-gold/80 underline transition-colors">Harvard Health — The ideal stretching routine</a> advises consistency over intensity. Regular stretching helps eliminate back pain and improves overall posture. Start your daily routine with light dynamic stretches before trying longer static holds.
               </p>
             </div>
+            <img src="https://images.unsplash.com/photo-1511632765486-a01980e01a18?auto=format&fit=crop&q=80&w=800" alt="Beginner doing a gentle full body stretch" className="rounded-2xl mt-8 w-full h-48 object-cover filter brightness-95 group-hover:brightness-100 transition-all duration-500" />
           </motion.div>
 
           <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: 0.2, duration: 0.5 }} whileHover={{ scale: 1.02 }} className="bg-white rounded-[2.5rem] p-8 md:p-10 shadow-xl border border-charcoal/5 flex flex-col group hover:-translate-y-2 hover:shadow-2xl">

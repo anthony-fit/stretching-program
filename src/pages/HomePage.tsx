@@ -1080,15 +1080,19 @@ export default function HomePage() {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-             <div className="bg-cream rounded-[2.5rem] p-8 md:p-10 col-span-1 md:col-span-2 flex flex-col justify-between overflow-hidden relative group h-[400px]">
-                <div className="relative z-10">
+             <div className="bg-cream rounded-[2.5rem] col-span-1 md:col-span-2 flex flex-col md:flex-row overflow-hidden group min-h-[400px] border border-charcoal/5 shadow-sm hover:shadow-xl transition-shadow duration-300">
+                <div className="p-8 md:p-12 md:w-1/2 flex flex-col justify-center relative z-10">
                   <div className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center shadow-sm mb-6">
                     <Layout className="w-6 h-6 text-gold" />
                   </div>
-                  <h4 className="text-2xl font-bold text-charcoal mb-3">Adaptive Routines</h4>
-                  <p className="text-charcoal/60 font-medium">Workouts that evolve with your daily recovery metrics and lifestyle factors.</p>
+                  <h4 className="text-2xl md:text-3xl font-bold text-charcoal mb-4 tracking-tight">Adaptive Routines</h4>
+                  <p className="text-charcoal/60 font-medium text-lg leading-relaxed">Workouts that evolve with your daily recovery metrics and lifestyle factors, designed to provide ongoing balance and flexibility calibration.</p>
                 </div>
-                <img src="https://images.unsplash.com/photo-1518611012118-696072aa579a?q=80&w=1000&auto=format&fit=crop" alt="Person mapping out their morning stretching flow" className="absolute right-0 bottom-0 max-w-[60%] md:max-w-[40%] rounded-tl-[2.5rem] shadow-2xl transform group-hover:-translate-y-2 group-hover:-translate-x-2 transition-transform duration-500" />
+                <div className="md:w-1/2 relative h-[250px] md:h-auto overflow-hidden">
+                  <div className="absolute inset-x-0 top-0 h-24 bg-gradient-to-b from-cream to-transparent md:hidden z-10" />
+                  <div className="absolute inset-y-0 left-0 w-24 bg-gradient-to-r from-cream to-transparent hidden md:block z-10" />
+                  <img src="https://images.unsplash.com/photo-1518611012118-696072aa579a?q=80&w=1000&auto=format&fit=crop" alt="Person mapping out their morning stretching flow" className="absolute inset-0 w-full h-full object-cover transform group-hover:scale-105 transition-transform duration-700" />
+                </div>
              </div>
              
              <div className="bg-charcoal text-cream rounded-[2.5rem] p-8 md:p-10 flex flex-col justify-between h-[400px]">
