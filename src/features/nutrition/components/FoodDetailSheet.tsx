@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { X, Scale, Calculator, Plus, ArrowRight } from 'lucide-react';
 import { FoodItem, MealCategory } from '../types';
 import { motion, AnimatePresence } from 'motion/react';
+import { useBodyScrollLock } from '../../../hooks/useBodyScrollLock';
 
 interface FoodDetailSheetProps {
   food: FoodItem | null;
@@ -12,6 +13,8 @@ interface FoodDetailSheetProps {
 export function FoodDetailSheet({ food, onClose, onAdd }: FoodDetailSheetProps) {
   const [amount, setAmount] = useState<any>(1);
   const [category, setCategory] = useState<MealCategory>('breakfast');
+
+  useBodyScrollLock(!!food);
 
   useEffect(() => {
     // Basic auto-assignment of category based on time of day

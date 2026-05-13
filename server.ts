@@ -29,7 +29,9 @@ async function startServer() {
 
   // Logging middleware
   app.use((req, res, next) => {
-    console.log(`[Server] ${req.method} ${req.url}`);
+    if (!req.url.startsWith('/src/') && !req.url.startsWith('/node_modules/') && !req.url.startsWith('/@')) {
+      console.log(`[Server] ${req.method} ${req.url}`);
+    }
     next();
   });
 
