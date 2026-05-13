@@ -973,46 +973,6 @@ export default function HomePage() {
       transition={transitionClasses.system}
       className="bg-cream selection:bg-gold overflow-hidden w-full max-w-full relative min-h-screen"
     >
-      {/* Header */}
-      <header className="fixed top-0 left-0 right-0 z-[100] px-4 md:px-8 py-4 md:py-6 backdrop-blur-md bg-cream/50 border-b border-charcoal/5">
-        <div className="max-w-7xl mx-auto flex items-center justify-between">
-          <div className="flex items-center gap-2 md:gap-8">
-            <div className="flex items-center gap-2 md:gap-3">
-              <div className="w-7 h-7 md:w-8 md:h-8 bg-gold rounded-lg flex items-center justify-center shadow-lg shadow-gold/20">
-                <Sparkles className="w-4 h-4 md:w-5 md:h-5 text-charcoal" />
-              </div>
-              <span className="text-lg md:text-xl font-serif italic text-charcoal font-bold tracking-tight">
-                Stretching Pro
-              </span>
-            </div>
-
-            {/* Desktop Nav */}
-            <nav className="hidden lg:flex items-center gap-6">
-              <Link to="/dashboard" className="text-[10px] font-black uppercase tracking-widest text-charcoal/60 hover:text-charcoal transition-colors">Dashboard</Link>
-              <Link to="/nutrition" className="text-[10px] font-black uppercase tracking-widest text-charcoal/60 hover:text-charcoal transition-colors">Nutrition</Link>
-              <Link to="/recovery" className="text-[10px] font-black uppercase tracking-widest text-charcoal/60 hover:text-charcoal transition-colors">Recovery</Link>
-            </nav>
-
-            {/* Mobile Nav */}
-            <nav className="flex lg:hidden items-center gap-3 overflow-x-auto no-scrollbar max-w-[150px]">
-              <Link to="/dashboard" className="text-[8px] font-black uppercase tracking-widest text-charcoal/40 hover:text-charcoal transition-colors whitespace-nowrap">Dashboard</Link>
-              <Link to="/nutrition" className="text-[8px] font-black uppercase tracking-widest text-charcoal/40 hover:text-charcoal transition-colors whitespace-nowrap">Nutrition</Link>
-              <Link to="/recovery" className="text-[8px] font-black uppercase tracking-widest text-charcoal/40 hover:text-charcoal transition-colors whitespace-nowrap">Recovery</Link>
-            </nav>
-          </div>
-
-          <div className="flex items-center gap-4">
-            <Link
-              to="/studio"
-              className="group text-[9px] md:text-[10px] font-black uppercase tracking-widest text-white flex items-center gap-2 bg-charcoal px-4 md:px-6 py-2 md:py-3 rounded-full border border-charcoal/10 transition-all active:scale-95 shadow-xl shadow-charcoal/20"
-            >
-              Launch Studio
-              <ArrowRight className="w-3 h-3 group-hover:translate-x-0.5 transition-transform" />
-            </Link>
-          </div>
-        </div>
-      </header>
-
       {/* Hero Section */}
       <section className="relative pt-32 pb-20 md:pt-40 md:pb-32 px-4 md:px-6 overflow-hidden">
         {/* Background Gradients */}
