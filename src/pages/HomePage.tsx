@@ -825,7 +825,17 @@ function LiveDemoHero() {
             <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-white/10 via-transparent to-transparent opacity-50"></div>
             <div className="absolute inset-0 z-10 pointer-events-none bg-[linear-gradient(rgba(255,255,255,0.02)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.02)_1px,transparent_1px)] bg-[size:20px_20px] [mask-image:radial-gradient(ellipse_60%_60%_at_50%_50%,#000_20%,transparent_100%)]"></div>
             <div className="absolute inset-0 z-0 flex items-center justify-center p-4">
-              <StretchAnimationPlayer exPath="default_stretch" hideControls={true} />
+              <iframe 
+                width="100%" 
+                height="100%" 
+                src="https://www.youtube.com/embed/OWnkNVfQCn8?si=toVLyh-iHMGjDJu6&autoplay=1&mute=1&loop=1&playlist=OWnkNVfQCn8&controls=0" 
+                title="YouTube video player" 
+                frameBorder="0" 
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" 
+                referrerPolicy="strict-origin-when-cross-origin" 
+                className="w-full h-full rounded-xl mix-blend-screen contrast-125 saturate-0 sepia-[.3] hue-rotate-[10deg] invert brightness-[0.8] opacity-80"
+                allowFullScreen>
+              </iframe>
             </div>
             <div className="absolute inset-0 z-20 pointer-events-none border border-white/10 rounded-2xl"></div>
             <div className="absolute top-0 left-0 w-full h-full z-30 pointer-events-none overflow-hidden rounded-2xl">
