@@ -61,30 +61,7 @@ export default function StretchAnimationPlayer({
   useEffect(() => {
     // Skip API calls for the default placeholder if no exName is provided
     if (!exName && (requestedSlug === "default_stretch" || !searchTerm)) {
-      const svgPlaceholder = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
-  <style>
-    @keyframes jump { 0%,100% {transform:translateY(0)} 50% {transform:translateY(-8px)} }
-    @keyframes arms-l { 0%,100% {transform:rotate(0deg)} 50% {transform:rotate(140deg)} }
-    @keyframes arms-r { 0%,100% {transform:rotate(0deg)} 50% {transform:rotate(-140deg)} }
-    @keyframes legs-l { 0%,100% {transform:rotate(0deg)} 50% {transform:rotate(30deg)} }
-    @keyframes legs-r { 0%,100% {transform:rotate(0deg)} 50% {transform:rotate(-30deg)} }
-    .person { transform-origin: 50% 50%; animation: jump 0.8s infinite; stroke: #fff; stroke-width: 6; stroke-linecap: round; fill: none; }
-    .arm-l { transform-origin: 50px 35px; animation: arms-l 0.8s infinite; }
-    .arm-r { transform-origin: 50px 35px; animation: arms-r 0.8s infinite; }
-    .leg-l { transform-origin: 50px 60px; animation: legs-l 0.8s infinite; }
-    .leg-r { transform-origin: 50px 60px; animation: legs-r 0.8s infinite; }
-    .head { stroke: none; fill: #fff; }
-  </style>
-  <g class="person">
-    <circle cx="50" cy="18" r="8" class="head"/>
-    <line x1="50" y1="26" x2="50" y2="60"/>
-    <line x1="50" y1="35" x2="30" y2="55" class="arm-l"/>
-    <line x1="50" y1="35" x2="70" y2="55" class="arm-r"/>
-    <line x1="50" y1="60" x2="40" y2="95" class="leg-l"/>
-    <line x1="50" y1="60" x2="60" y2="95" class="leg-r"/>
-  </g>
-</svg>`;
-      setGifUrl(`data:image/svg+xml;charset=utf-8,${encodeURIComponent(svgPlaceholder.replace(/\s+/g, ' '))}`);
+      setGifUrl("https://upload.wikimedia.org/wikipedia/commons/2/2f/Jumping_jack.gif");
       setIsApiLoading(false);
       return;
     }
@@ -540,9 +517,9 @@ export default function StretchAnimationPlayer({
                     setGifUrl(null);
                     setImageUrls([]);
                   }}
-                  className={`absolute inset-0 w-full h-full object-contain mix-blend-multiply transition-opacity duration-[1500ms] ease-in-out ${
+                  className={`absolute inset-0 w-full h-full object-contain transition-all duration-[1500ms] ease-in-out ${
                     isLoaded ? (frame - 1 === index ? 'opacity-100' : 'opacity-0') : 'opacity-0'
-                  }`}
+                  } ${hideControls ? 'contrast-125 saturate-0 sepia-[.3] hue-rotate-[10deg] invert brightness-[0.8] opacity-60 mix-blend-screen [filter:drop-shadow(0_0_8px_rgba(255,215,0,0.4))]' : 'mix-blend-multiply'}`}
                 />
               ))
             ) : (
@@ -562,7 +539,7 @@ export default function StretchAnimationPlayer({
                   setImageUrls([]);
                   setUseFallback(true);
                 }}
-                className={`w-full h-full object-contain transition-opacity duration-300 ${isLoaded ? 'opacity-100' : 'opacity-0'} ${hideControls ? 'grayscale invert mix-blend-screen opacity-80' : 'mix-blend-multiply'}`}
+                className={`w-full h-full object-contain transition-all duration-700 ${isLoaded ? 'opacity-100' : 'opacity-0'} ${hideControls ? 'contrast-125 saturate-0 sepia-[.3] hue-rotate-[10deg] invert brightness-[0.8] opacity-60 mix-blend-screen [filter:drop-shadow(0_0_8px_rgba(255,215,0,0.4))]' : 'mix-blend-multiply'}`}
               />
             )}
           </>
@@ -609,7 +586,7 @@ export default function StretchAnimationPlayer({
                 setTimeout(() => { setIsLoaded(true); setIsFullyBroken(true); }, 0);
               }
             }}
-            className={`w-full h-full object-contain transition-opacity duration-300 ${isLoaded ? 'opacity-100' : 'opacity-0'} ${hideControls ? 'grayscale invert mix-blend-screen opacity-80' : 'mix-blend-multiply'}`}
+            className={`w-full h-full object-contain transition-all duration-300 ${isLoaded ? 'opacity-100' : 'opacity-0'} ${hideControls ? 'contrast-125 saturate-0 sepia-[.3] hue-rotate-[10deg] invert brightness-[0.8] opacity-60 mix-blend-screen [filter:drop-shadow(0_0_8px_rgba(255,215,0,0.4))]' : 'mix-blend-multiply'}`}
           />
         )}
       </motion.div>
