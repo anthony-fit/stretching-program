@@ -526,7 +526,7 @@ export default function StretchAnimationPlayer({
                   }}
                   className={`absolute inset-0 w-full h-full object-contain transition-none ${
                     isLoaded ? 'opacity-100' : 'opacity-0'
-                  } ${hideControls ? 'contrast-125 saturate-0 sepia-[.3] hue-rotate-[10deg] invert brightness-[0.8] opacity-60 mix-blend-screen [filter:drop-shadow(0_0_8px_rgba(255,215,0,0.4))]' : 'mix-blend-multiply'}`}
+                  } ${hideControls ? 'opacity-90' : 'mix-blend-multiply'}`}
                 />
               </>
             ) : (
@@ -546,7 +546,7 @@ export default function StretchAnimationPlayer({
                   setImageUrls([]);
                   setUseFallback(true);
                 }}
-                className={`w-full h-full object-contain transition-all duration-700 ${isLoaded ? 'opacity-100' : 'opacity-0'} ${hideControls ? 'contrast-125 saturate-0 sepia-[.3] hue-rotate-[10deg] invert brightness-[0.8] opacity-60 mix-blend-screen [filter:drop-shadow(0_0_8px_rgba(255,215,0,0.4))]' : 'mix-blend-multiply'}`}
+                className={`w-full h-full object-contain transition-all duration-700 ${isLoaded ? 'opacity-100' : 'opacity-0'} ${hideControls ? 'opacity-90' : 'mix-blend-multiply'}`}
               />
             )}
           </>
@@ -589,7 +589,7 @@ export default function StretchAnimationPlayer({
                 setTimeout(() => { setIsLoaded(true); setIsFullyBroken(true); }, 0);
               }
             }}
-            className={`w-full h-full object-contain transition-none ${isLoaded ? 'opacity-100' : 'opacity-0'} ${hideControls ? 'contrast-125 saturate-0 sepia-[.3] hue-rotate-[10deg] invert brightness-[0.8] opacity-60 mix-blend-screen [filter:drop-shadow(0_0_8px_rgba(255,215,0,0.4))]' : 'mix-blend-multiply'}`}
+            className={`w-full h-full object-contain transition-none ${isLoaded ? 'opacity-100' : 'opacity-0'} ${hideControls ? 'opacity-90' : 'mix-blend-multiply'}`}
           />
         )}
       </motion.div>

@@ -833,7 +833,7 @@ function LiveDemoHero() {
                 frameBorder="0" 
                 allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" 
                 referrerPolicy="strict-origin-when-cross-origin" 
-                className="w-full h-full rounded-xl mix-blend-screen contrast-125 saturate-0 sepia-[.3] hue-rotate-[10deg] invert brightness-[0.8] opacity-80"
+                className="w-full h-full rounded-xl pointer-events-none"
                 allowFullScreen>
               </iframe>
             </div>
