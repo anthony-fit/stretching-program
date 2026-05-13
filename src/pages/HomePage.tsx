@@ -992,17 +992,20 @@ export default function HomePage() {
       </header>
 
       {/* Hero Section */}
-      <section className="relative pt-24 md:pt-28 pb-12 md:pb-16 px-4 md:px-6">
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,_var(--tw-gradient-stops))] from-gold/10 via-transparent to-transparent pointer-events-none" />
+      <section className="relative pt-32 pb-20 md:pt-40 md:pb-32 px-4 md:px-6 overflow-hidden">
+        {/* Background Gradients */}
+        <div className="absolute inset-x-0 -top-40 -z-10 transform-gpu overflow-hidden blur-3xl sm:-top-80" aria-hidden="true">
+          <div className="relative left-[calc(50%-11rem)] aspect-[1155/678] w-[36.125rem] -translate-x-1/2 rotate-[30deg] bg-gradient-to-tr from-gold to-[#f0e6d2] opacity-30 sm:left-[calc(50%-30rem)] sm:w-[72.1875rem]" style={{ clipPath: 'polygon(74.1% 44.1%, 100% 61.6%, 97.5% 26.9%, 85.5% 0.1%, 80.7% 2%, 72.5% 32.5%, 60.2% 62.4%, 52.4% 68.1%, 47.5% 58.3%, 45.2% 34.5%, 27.5% 76.7%, 0.1% 64.9%, 17.9% 100%, 27.6% 76.8%, 76.1% 97.7%, 74.1% 44.1%)' }}></div>
+        </div>
 
-        <div className="max-w-7xl mx-auto text-center relative z-10">
+        <div className="max-w-7xl mx-auto flex flex-col items-center text-center relative z-10">
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="inline-flex items-center gap-3 px-4 py-2 rounded-full bg-charcoal/5 border border-charcoal/10 mb-6 md:mb-8"
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="inline-flex items-center gap-3 px-5 py-2.5 rounded-full bg-white/80 backdrop-blur-md border border-charcoal/5 shadow-sm mb-10"
           >
-            <Sparkles className="w-4 h-4 text-gold" />
-            <h1 className="text-[10px] font-black uppercase tracking-[0.2em] text-charcoal/60">
+            <Sparkles className="w-5 h-5 text-gold" />
+            <h1 className="text-xs md:text-sm font-bold uppercase tracking-[0.15em] text-charcoal/80">
               AI Stretching Coaching Free Workout App
             </h1>
           </motion.div>
@@ -1011,55 +1014,125 @@ export default function HomePage() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.1 }}
-            className="text-4xl sm:text-5xl md:text-7xl lg:text-8xl font-serif italic text-charcoal tracking-tighter leading-[1.1] mb-6 px-2"
+            className="text-5xl sm:text-6xl md:text-8xl lg:text-[7rem] font-black tracking-tight text-charcoal leading-[1.05] mb-8 px-2 max-w-5xl"
           >
-            Improve Flexibility, <span className="text-gold">Fitness and Nutrition</span>
+            Improve Flexibility, <span className="text-gold font-serif italic font-normal">Fitness & Nutrition</span>
           </motion.h2>
 
           <motion.p
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.2 }}
-            className="text-lg md:text-xl lg:text-2xl text-charcoal/60 font-light max-w-4xl mx-auto leading-relaxed mb-8 md:mb-10 px-4"
+            className="text-lg md:text-xl lg:text-2xl text-charcoal/60 font-medium max-w-3xl mx-auto leading-relaxed mb-12 px-4"
           >
             The Stretching Program offers an AI-powered studio that designs a daily stretching routine. This innovative feature helps users grow younger and improve fitness using AI automation. You can plan your wellness and easily integrate this exercise into your daily life.
           </motion.p>
-
-          <AICoachPrompt />
+          
+          <div className="w-full max-w-3xl mx-auto mb-12 relative z-20">
+             <AICoachPrompt />
+          </div>
 
           <motion.div
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.3 }}
-            className="flex flex-col sm:flex-row items-center justify-center gap-6 px-4"
+            className="flex flex-col sm:flex-row items-center justify-center gap-4 px-4 w-full"
           >
             <Link
               to="/studio"
-              className="group px-8 md:px-12 py-4 md:py-5 bg-charcoal text-cream rounded-full font-bold uppercase tracking-widest hover:scale-105 active:scale-95 transition-all shadow-2xl flex items-center gap-4 text-sm md:text-base w-full sm:w-auto justify-center"
+              className="group px-8 md:px-12 py-4 md:py-5 bg-charcoal text-cream rounded-[2rem] font-bold text-sm tracking-wide hover:scale-105 active:scale-95 transition-all shadow-xl hover:shadow-2xl flex items-center justify-center gap-3 w-full sm:w-auto"
             >
-              Enter Studio{" "}
+              Start Free Trial
               <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
             </Link>
-            <a
-              href="#preview"
-              className="text-[10px] md:text-sm font-black uppercase tracking-[0.3em] text-charcoal/40 hover:text-charcoal transition-colors underline underline-offset-4 decoration-charcoal/20 hover:decoration-charcoal"
-            >
-              View Sandbox
-            </a>
           </motion.div>
         </div>
 
-        {/* Hero Visual: Stretching Pro Studio Block */}
-        <motion.div
-          id="preview"
-          initial={{ opacity: 0, y: 40 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.4, duration: 0.8 }}
-          className="max-w-7xl mx-auto mt-16 md:mt-24 relative z-10 text-left"
+        {/* Floating Image Elements for Hero */}
+        <motion.div 
+           initial={{ opacity: 0, y: 40 }}
+           animate={{ opacity: 1, y: 0 }}
+           transition={{ delay: 0.5, duration: 1 }}
+           className="relative max-w-7xl mx-auto mt-20"
         >
-          <div className="absolute inset-0 bg-gold/10 blur-[100px] rounded-full pointer-events-none" />
-          <LiveDemoHero />
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-center">
+            <div className="hidden md:block col-span-1 transform translate-y-12">
+               <img src="https://images.unsplash.com/photo-1544367567-0f2fcb009e0b?q=80&w=1200&auto=format&fit=crop" alt="Woman performing a deep stretching yoga pose on a mat" className="rounded-[2.5rem] shadow-2xl object-cover h-[400px] w-full" />
+            </div>
+            <div className="col-span-1 md:col-span-1 z-10 scale-105">
+               <img src="https://images.unsplash.com/photo-1571019614242-c5c5dee9f50b?q=80&w=1200&auto=format&fit=crop" alt="Athletic person doing a plank exercise representing core fitness" className="rounded-[3rem] shadow-2xl object-cover h-[500px] w-full border-[8px] border-cream" />
+            </div>
+            <div className="hidden md:block col-span-1 transform -translate-y-8">
+               <img src="https://images.unsplash.com/photo-1490645935967-10de6ba17061?q=80&w=1200&auto=format&fit=crop" alt="Healthy nutrition bowl with fresh vegetables and grains" className="rounded-[2.5rem] shadow-2xl object-cover h-[400px] w-full" />
+            </div>
+          </div>
         </motion.div>
+      </section>
+
+      {/* Feature Bento Grid */}
+      <section className="py-24 px-4 md:px-6 bg-white">
+        <div className="max-w-7xl mx-auto">
+          <div className="mb-16 md:mb-20">
+            <h3 className="text-3xl md:text-5xl font-bold tracking-tight text-charcoal mb-6">
+              A Complete <span className="text-gold font-serif italic">Operating System</span><br/> for your ongoing wellness.
+            </h3>
+            <p className="text-lg text-charcoal/60 max-w-2xl font-medium">Design routines, track recovery, and dial in your nutrition all from a single intelligent platform designed for high-end performance.</p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+             <div className="bg-cream rounded-[2.5rem] p-8 md:p-10 col-span-1 md:col-span-2 flex flex-col justify-between overflow-hidden relative group h-[400px]">
+                <div className="relative z-10">
+                  <div className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center shadow-sm mb-6">
+                    <Layout className="w-6 h-6 text-gold" />
+                  </div>
+                  <h4 className="text-2xl font-bold text-charcoal mb-3">Adaptive Routines</h4>
+                  <p className="text-charcoal/60 font-medium">Workouts that evolve with your daily recovery metrics and lifestyle factors.</p>
+                </div>
+                <img src="https://images.unsplash.com/photo-1518611012118-696072aa579a?q=80&w=1000&auto=format&fit=crop" alt="Person mapping out their morning stretching flow" className="absolute right-0 bottom-0 max-w-[60%] md:max-w-[40%] rounded-tl-[2.5rem] shadow-2xl transform group-hover:-translate-y-2 group-hover:-translate-x-2 transition-transform duration-500" />
+             </div>
+             
+             <div className="bg-charcoal text-cream rounded-[2.5rem] p-8 md:p-10 flex flex-col justify-between h-[400px]">
+                <div>
+                  <div className="w-12 h-12 bg-white/10 rounded-2xl flex items-center justify-center mb-6">
+                    <Activity className="w-6 h-6 text-gold" />
+                  </div>
+                  <h4 className="text-2xl font-bold mb-3">Living Data</h4>
+                  <p className="text-cream/60 font-medium leading-relaxed">Integrated telemetry creates a feedback loop for real-time adjustments.</p>
+                </div>
+                <div className="bg-white/5 rounded-2xl p-5 border border-white/10">
+                   <div className="flex justify-between items-center mb-3">
+                      <span className="text-xs uppercase tracking-wider text-white/50">Recovery Score</span>
+                      <span className="text-sm font-bold text-gold">94%</span>
+                   </div>
+                   <div className="w-full bg-white/10 h-2 rounded-full overflow-hidden">
+                      <div className="bg-gold h-full w-[94%] rounded-full"></div>
+                   </div>
+                </div>
+             </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Interactive Sandbox Section */}
+      <section className="py-24 md:py-32 px-4 md:px-6 bg-cream border-t border-charcoal/5">
+        <div className="max-w-7xl mx-auto">
+          <div className="text-center mb-16 md:mb-20">
+             <h3 className="text-3xl md:text-5xl font-bold tracking-tight text-charcoal mb-6">Experience the <span className="font-serif italic text-gold">Studio Workflow</span></h3>
+             <p className="text-lg text-charcoal/60 max-w-2xl mx-auto font-medium">Test our AI orchestration engine instantly. Witness cinematic rendering and dynamic timeline construction in real time.</p>
+          </div>
+          
+          <motion.div
+            id="preview"
+            initial={{ opacity: 0, y: 40 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true, margin: "-100px" }}
+            transition={{ duration: 0.8 }}
+            className="relative z-10 text-left"
+          >
+            <div className="absolute inset-0 bg-gold/5 blur-[100px] rounded-full pointer-events-none" />
+            <LiveDemoHero />
+          </motion.div>
+        </div>
       </section>
 
       {/* CTA Section */}
