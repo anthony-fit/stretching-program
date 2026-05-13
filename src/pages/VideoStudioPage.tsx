@@ -5,6 +5,7 @@ import React, {
   useMemo,
   useCallback,
 } from "react";
+import { createPortal } from "react-dom";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "motion/react";
 import {
@@ -7600,119 +7601,125 @@ export default function VideoStudioPage() {
         />
       </motion.div>
 
-      <AnimatePresence>
-        {showPhaseComplete && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[200] bg-charcoal/95 backdrop-blur-3xl flex items-center justify-center p-6"
-          >
+      {typeof document !== 'undefined' && createPortal(
+        <AnimatePresence>
+          {showPhaseComplete && (
             <motion.div
-              initial={{ scale: 0.9, y: 20 }}
-              animate={{ scale: 1, y: 0 }}
-              className="w-full max-w-lg p-8 rounded-3xl border border-gold/30 bg-gold/5 text-center space-y-6 relative overflow-hidden"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 z-[9999] bg-charcoal/95 backdrop-blur-3xl flex items-center justify-center p-6"
             >
-              <div className="absolute top-0 left-0 w-full h-1 bg-gold shadow-[0_0_20px_rgba(234,179,8,0.5)]" />
-              <div className="flex flex-col items-center gap-4">
-                <div className="w-20 h-20 rounded-full bg-gold/10 flex items-center justify-center border border-gold/20 shadow-lg shadow-gold/10">
-                  <Award className="w-10 h-10 text-gold" />
-                </div>
-                <div className="space-y-1">
-                  <p className="text-[10px] font-black uppercase tracking-[0.3em] text-gold">
-                    Phase Complete
-                  </p>
-                  <h2 className="text-3xl font-serif italic text-white">
-                    {showPhaseComplete}
-                  </h2>
-                </div>
-              </div>
-
-              <div className="p-6 rounded-2xl bg-white/5 border border-white/5 text-left space-y-4">
-                <p className="text-[10px] uppercase font-black tracking-widest text-white/30">
-                  Progression Summary
-                </p>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-1">
-                    <p className="text-[8px] font-bold text-white/40 uppercase">
-                      Total Sessions
-                    </p>
-                    <p className="text-xl font-black text-gold">
-                      {currentProgression?.completedWorkoutCount}
-                    </p>
-                  </div>
-                  <div className="space-y-1">
-                    <p className="text-[8px] font-bold text-white/40 uppercase">
-                      Max Readiness
-                    </p>
-                    <p className="text-xl font-black text-gold">94%</p>
-                  </div>
-                  <div className="space-y-1">
-                    <p className="text-[8px] font-bold text-white/40 uppercase">
-                      Best Streak
-                    </p>
-                    <p className="text-xl font-black text-gold">
-                      {currentProgression?.consistencyStreak} Days
-                    </p>
-                  </div>
-                  <div className="space-y-1">
-                    <p className="text-[8px] font-bold text-white/40 uppercase">
-                      Focus Mastery
-                    </p>
-                    <p className="text-xl font-black text-green-400">High</p>
-                  </div>
-                </div>
-                <p className="text-[10px] text-white/60 leading-relaxed italic pr-4">
-                  "Foundation patterns are now integrated at a neuromuscular
-                  level. Moving to specialized hypertrophy protocols."
-                </p>
-              </div>
-
-              <button
-                onClick={() => setShowPhaseComplete(null)}
-                className="w-full py-4 rounded-xl bg-gold text-charcoal font-black uppercase text-[12px] tracking-[0.2em] shadow-lg shadow-gold/10 hover:bg-gold/90 transition-all"
+              <motion.div
+                initial={{ scale: 0.9, y: 20 }}
+                animate={{ scale: 1, y: 0 }}
+                className="w-full max-w-lg p-8 rounded-3xl border border-gold/30 bg-gold/5 text-center space-y-6 relative overflow-hidden"
               >
-                Enter Next Phase
-              </button>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+                <div className="absolute top-0 left-0 w-full h-1 bg-gold shadow-[0_0_20px_rgba(234,179,8,0.5)]" />
+                <div className="flex flex-col items-center gap-4">
+                  <div className="w-20 h-20 rounded-full bg-gold/10 flex items-center justify-center border border-gold/20 shadow-lg shadow-gold/10">
+                    <Award className="w-10 h-10 text-gold" />
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-[10px] font-black uppercase tracking-[0.3em] text-gold">
+                      Phase Complete
+                    </p>
+                    <h2 className="text-3xl font-serif italic text-white">
+                      {showPhaseComplete}
+                    </h2>
+                  </div>
+                </div>
 
-      <AnimatePresence>
-        {pendingConfirm && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4"
-          >
-            <motion.div
-              initial={{ scale: 0.95, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.95, opacity: 0 }}
-              className="bg-[#111] border border-white/10 p-6 md:p-8 rounded-2xl max-w-sm w-full shadow-2xl flex flex-col gap-6"
-            >
-              <h3 className="text-cream text-lg font-bold">Please Confirm</h3>
-              <p className="text-cream/70 text-sm">{pendingConfirm.message}</p>
-              <div className="flex items-center gap-3 mt-2">
+                <div className="p-6 rounded-2xl bg-white/5 border border-white/5 text-left space-y-4">
+                  <p className="text-[10px] uppercase font-black tracking-widest text-white/30">
+                    Progression Summary
+                  </p>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-1">
+                      <p className="text-[8px] font-bold text-white/40 uppercase">
+                        Total Sessions
+                      </p>
+                      <p className="text-xl font-black text-gold">
+                        {currentProgression?.completedWorkoutCount}
+                      </p>
+                    </div>
+                    <div className="space-y-1">
+                      <p className="text-[8px] font-bold text-white/40 uppercase">
+                        Max Readiness
+                      </p>
+                      <p className="text-xl font-black text-gold">94%</p>
+                    </div>
+                    <div className="space-y-1">
+                      <p className="text-[8px] font-bold text-white/40 uppercase">
+                        Best Streak
+                      </p>
+                      <p className="text-xl font-black text-gold">
+                        {currentProgression?.consistencyStreak} Days
+                      </p>
+                    </div>
+                    <div className="space-y-1">
+                      <p className="text-[8px] font-bold text-white/40 uppercase">
+                        Focus Mastery
+                      </p>
+                      <p className="text-xl font-black text-green-400">High</p>
+                    </div>
+                  </div>
+                  <p className="text-[10px] text-white/60 leading-relaxed italic pr-4">
+                    "Foundation patterns are now integrated at a neuromuscular
+                    level. Moving to specialized hypertrophy protocols."
+                  </p>
+                </div>
+
                 <button
-                  onClick={() => setPendingConfirm(null)}
-                  className="flex-1 px-4 py-3 bg-white/5 hover:bg-white/10 text-white font-medium rounded-xl transition-colors text-sm"
+                  onClick={() => setShowPhaseComplete(null)}
+                  className="w-full py-4 rounded-xl bg-gold text-charcoal font-black uppercase text-[12px] tracking-[0.2em] shadow-lg shadow-gold/10 hover:bg-gold/90 transition-all"
                 >
-                  Cancel
+                  Enter Next Phase
                 </button>
-                <button
-                  onClick={pendingConfirm.onConfirm}
-                  className="flex-1 px-4 py-3 bg-gold hover:bg-white text-charcoal font-bold rounded-xl transition-colors text-sm"
-                >
-                  Proceed
-                </button>
-              </div>
+              </motion.div>
             </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+          )}
+        </AnimatePresence>,
+        document.body
+      )}
+
+      {typeof document !== 'undefined' && createPortal(
+        <AnimatePresence>
+          {pendingConfirm && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4"
+            >
+              <motion.div
+                initial={{ scale: 0.95, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                exit={{ scale: 0.95, opacity: 0 }}
+                className="bg-[#111] border border-white/10 p-6 md:p-8 rounded-2xl max-w-sm w-full shadow-2xl flex flex-col gap-6"
+              >
+                <h3 className="text-cream text-lg font-bold">Please Confirm</h3>
+                <p className="text-cream/70 text-sm">{pendingConfirm.message}</p>
+                <div className="flex items-center gap-3 mt-2">
+                  <button
+                    onClick={() => setPendingConfirm(null)}
+                    className="flex-1 px-4 py-3 bg-white/5 hover:bg-white/10 text-white font-medium rounded-xl transition-colors text-sm"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={pendingConfirm.onConfirm}
+                    className="flex-1 px-4 py-3 bg-gold hover:bg-white text-charcoal font-bold rounded-xl transition-colors text-sm"
+                  >
+                    Proceed
+                  </button>
+                </div>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>,
+        document.body
+      )}
     </>
   );
 }

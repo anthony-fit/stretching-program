@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
+import { HomePageSEO } from "../components/HomePageSEO";
 import { motion, AnimatePresence } from "motion/react";
 import {
   Sparkles,
@@ -1001,21 +1002,19 @@ export default function HomePage() {
             className="inline-flex items-center gap-3 px-4 py-2 rounded-full bg-charcoal/5 border border-charcoal/10 mb-6 md:mb-8"
           >
             <Sparkles className="w-4 h-4 text-gold" />
-            <span className="text-[10px] font-black uppercase tracking-[0.2em] text-charcoal/60">
-              Beta Access Now Live
-            </span>
+            <h1 className="text-[10px] font-black uppercase tracking-[0.2em] text-charcoal/60">
+              AI Stretching Coaching Free Workout App
+            </h1>
           </motion.div>
 
-          <motion.h1
+          <motion.h2
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.1 }}
-            className="text-4xl sm:text-5xl md:text-8xl lg:text-9xl font-serif italic text-charcoal tracking-tighter leading-[1.1] mb-6 px-2"
+            className="text-4xl sm:text-5xl md:text-7xl lg:text-8xl font-serif italic text-charcoal tracking-tighter leading-[1.1] mb-6 px-2"
           >
-            Adaptive <span className="text-gold">Movement</span>{" "}
-            <br className="hidden md:block" />
-            Intelligence.
-          </motion.h1>
+            Improve Flexibility, <span className="text-gold">Fitness and Nutrition</span>
+          </motion.h2>
 
           <motion.p
             initial={{ opacity: 0, y: 20 }}
@@ -1023,9 +1022,7 @@ export default function HomePage() {
             transition={{ delay: 0.2 }}
             className="text-lg md:text-xl lg:text-2xl text-charcoal/60 font-light max-w-4xl mx-auto leading-relaxed mb-8 md:mb-10 px-4"
           >
-            Orchestrate professional movement systems and adaptive generation
-            flows. From micro-routines to cinematic timelines, powered by{" "}
-            <strong>living data</strong>.
+            The Stretching Program offers an AI-powered studio that designs a daily stretching routine. This innovative feature helps users grow younger and improve fitness using AI automation. You can plan your wellness and easily integrate this exercise into your daily life.
           </motion.p>
 
           <AICoachPrompt />
@@ -1088,6 +1085,11 @@ export default function HomePage() {
             </Link>
           </div>
         </div>
+      </section>
+
+      {/* SEO Content Section */}
+      <section className="bg-cream border-t border-charcoal/5">
+        <HomePageSEO />
       </section>
     </motion.div>
   );
