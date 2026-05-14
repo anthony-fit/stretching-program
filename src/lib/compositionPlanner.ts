@@ -86,7 +86,15 @@ export async function generateCompositionBlueprint(prefs: {
   exercises?: Exercise[];
 }): Promise<CompositionBlueprint | null> {
   // We summarize the database for the LLM
-  const sourceDB = prefs.exercises && prefs.exercises.length > 0 ? prefs.exercises : EXERCISE_DATABASE;
+  let sourceDB = prefs.exercises && prefs.exercises.length > 0 ? prefs.exercises : EXERCISE_DATABASE;
+  
+  // To avoid hitting API rate limits (TPM: 12000 for Llama 3.3 70B),
+  // we will randomly sample up to 100 exercises from the eligible pool.
+  if (sourceDB.length > 100) {
+    const shuffled = [...sourceDB].sort(() => 0.5 - Math.random());
+    sourceDB = shuffled.slice(0, 100);
+  }
+
   const dbSummary = sourceDB.map(
     (ex) =>
       `[${ex.id}] ${ex.name} | Cat:${ex.category} | Mus:${(ex.focus || []).join(",")} | Eq:${(ex.equipment || []).join(",")} | Lvl:${ex.level}`

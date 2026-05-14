@@ -1,3 +1,28 @@
+import StretchAnimationPlayer from "../components/StretchAnimationPlayer";
+import { Exercise, EXERCISE_DATABASE } from "../data/exercises";
+import {
+  calculateReadiness,
+  getProgressionFromReports,
+  PRESET_PROGRAMS,
+  UserProgression,
+  Program,
+  getDailyInspiration,
+  GOAL_JOURNEYS,
+  GoalJourney,
+  TransformationNarrative,
+  getTransformationNarrative,
+  TRANSFORMATION_THEMES,
+  TransformationThemeId,
+} from "../lib/programming";
+import { WorkoutReport } from "../lib/reports";
+import { CoachProfile, COACH_PROFILES } from "../lib/coaching";
+import { calculateAtmosphere } from "../lib/runtime/atmosphere";
+import {
+  getAdaptiveState,
+  getStateAmbientClasses,
+  getStateMotionMultiplier,
+} from "../lib/runtime/adaptive";
+import { transitionClasses, V } from "../lib/runtime/motion";
 import React, {
   useState,
   useEffect,
@@ -300,31 +325,6 @@ const MasterReviewPlayer = React.lazy(() =>
     default: module.MasterReviewPlayer,
   })),
 );
-import StretchAnimationPlayer from "../components/StretchAnimationPlayer";
-import { Exercise, EXERCISE_DATABASE } from "../data/exercises";
-import {
-  calculateReadiness,
-  getProgressionFromReports,
-  PRESET_PROGRAMS,
-  UserProgression,
-  Program,
-  getDailyInspiration,
-  GOAL_JOURNEYS,
-  GoalJourney,
-  TransformationNarrative,
-  getTransformationNarrative,
-  TRANSFORMATION_THEMES,
-  TransformationThemeId,
-} from "../lib/programming";
-import { WorkoutReport } from "../lib/reports";
-import { CoachProfile, COACH_PROFILES } from "../lib/coaching";
-import { calculateAtmosphere } from "../lib/runtime/atmosphere";
-import {
-  getAdaptiveState,
-  getStateAmbientClasses,
-  getStateMotionMultiplier,
-} from "../lib/runtime/adaptive";
-import { transitionClasses, V } from "../lib/runtime/motion";
 
 interface StoryboardItem extends Exercise {
   duration: number;
@@ -1541,7 +1541,17 @@ export default function VideoStudioPage() {
             videoUrl: assetUrl || "#",
 
             instructions: ex.instructions || [],
-            equipment: ex.equipment || [],
+            equipment: (() => {
+              const eq = ex.equipment?.toLowerCase() || "";
+              if (!eq || eq === "body only") return ["None"];
+              if (eq === "bands") return ["Resistance Band"];
+              if (eq === "dumbbell") return ["Dumbbell"];
+              if (eq === "barbell") return ["Barbell"];
+              if (eq === "kettlebells") return ["Kettlebell"];
+              if (eq === "cable") return ["Cable"];
+              if (eq === "machine") return ["Machine"];
+              return [ex.equipment];
+            })(),
             targetMuscles: ex.primaryMuscles || [],
             secondaryMuscles: ex.secondaryMuscles || [],
           };
@@ -2071,6 +2081,26 @@ export default function VideoStudioPage() {
     const totalSeconds = parseInt(config.duration || "120");
     const durationMinutes = Math.max(1, Math.floor(totalSeconds / 60));
 
+    // Determine eligible exercises based on equipment
+    const allowedEquipment = config.equipment || ["None"];
+    const requiresNoEquipment = allowedEquipment.includes("None") && allowedEquipment.length === 1;
+    
+    const eligibleExercises = exercises.filter((ex) => {
+      if (!ex.equipment || ex.equipment.length === 0) return true;
+      
+      const exEq = Array.isArray(ex.equipment) ? ex.equipment : [ex.equipment as unknown as string];
+      const allowedLower = allowedEquipment.map((a: string) => a.toLowerCase());
+
+      // If user selected ONLY "No Equipment", ensure the exercise only requires "None"
+      if (requiresNoEquipment) {
+        return exEq.every((eq: string) => eq.toLowerCase() === "none");
+      }
+      
+      // Otherwise, the exercise is eligible if its equipment overlaps with allowedEquipment,
+      // or if it requires "None" (which is always allowed if you have equipment).
+      return exEq.some((eq: string) => allowedLower.includes(eq.toLowerCase()) || eq.toLowerCase() === "none");
+    });
+
     setIsInitializingProtocol(true);
     setGenerationMessage("Preparing user content...");
     console.log("[PIPELINE] Wizard Config Sent To Groq:", config);
@@ -2087,7 +2117,7 @@ export default function VideoStudioPage() {
       const blueprint = await generateCompositionBlueprint({
         ...config,
         durationMinutes,
-        exercises,
+        exercises: eligibleExercises,
       });
 
       console.log("[PIPELINE] LLM Blueprint Received:", blueprint);
@@ -2107,12 +2137,12 @@ export default function VideoStudioPage() {
       let gatheredIntelligence: string[] = [];
 
       blueprint.scenes.forEach((scene: any) => {
-        let exMatch = exercises.find((ex) => ex.id === scene.exerciseId);
+        let exMatch = eligibleExercises.find((ex) => ex.id === scene.exerciseId);
 
         if (!exMatch) {
           exMatch = resolveVerifiedExercise(
             scene.exerciseId,
-            exercises,
+            eligibleExercises,
             config.focus,
             config.focus,
           );
@@ -2149,7 +2179,7 @@ export default function VideoStudioPage() {
         await import("../lib/biomechanicalAnalyzer");
       const balancedResult = analyzeAndBalanceRoutine(
         generatedItems,
-        exercises,
+        eligibleExercises,
       );
       generatedItems = balancedResult.items;
       generatedAiScript = [
@@ -2165,7 +2195,7 @@ export default function VideoStudioPage() {
         await import("../lib/adaptiveGoalEngine");
       const adaptiveResult = applyAdaptiveGoalEngine(
         generatedItems,
-        exercises,
+        eligibleExercises,
         config,
       );
       generatedItems = adaptiveResult.items;
@@ -2183,7 +2213,7 @@ export default function VideoStudioPage() {
       const memoryResult = applyProgressiveAdaptation(
         generatedItems,
         generatedAiScript,
-        exercises,
+        eligibleExercises,
         config,
       );
       generatedItems = memoryResult.items;
@@ -2277,7 +2307,7 @@ export default function VideoStudioPage() {
           config.level,
           config.focus,
           durationMinutes,
-          exercises,
+          eligibleExercises,
         );
         console.log("[PIPELINE] Deterministic Engine Used", fallBackRoutine);
 
@@ -2294,14 +2324,14 @@ export default function VideoStudioPage() {
         let gatheredIntelligence: string[] = [];
 
         fallBackRoutine.exercises.forEach((exItem) => {
-          let exMatch = exercises.find(
+          let exMatch = eligibleExercises.find(
             (ex: any) => ex.name.toLowerCase() === exItem.name.toLowerCase(),
           );
 
           if (!exMatch) {
             exMatch = resolveVerifiedExercise(
               exItem.name,
-              exercises,
+              eligibleExercises,
               config.focus,
               config.focus,
             );
@@ -2347,7 +2377,7 @@ export default function VideoStudioPage() {
           await import("../lib/biomechanicalAnalyzer");
         const balancedResult = analyzeAndBalanceRoutine(
           generatedItems,
-          exercises,
+          eligibleExercises,
         );
         generatedItems = balancedResult.items;
         generatedAiScript = [
@@ -2363,7 +2393,7 @@ export default function VideoStudioPage() {
           await import("../lib/adaptiveGoalEngine");
         const adaptiveResult = applyAdaptiveGoalEngine(
           generatedItems,
-          exercises,
+          eligibleExercises,
           config,
         );
         generatedItems = adaptiveResult.items;
@@ -2381,7 +2411,7 @@ export default function VideoStudioPage() {
         const memoryResult = applyProgressiveAdaptation(
           generatedItems,
           generatedAiScript,
-          exercises,
+          eligibleExercises,
           config,
         );
         generatedItems = memoryResult.items;
