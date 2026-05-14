@@ -40,6 +40,11 @@ import { buildHabitMomentum, HabitMomentumMetrics } from '../utils/buildHabitMom
 import { behavioralContinuityEngine, BehavioralState } from '../services/behavioralContinuityEngine';
 import { weeklyRecoveryRhythmEngine, WeeklyRhythmState } from '../services/weeklyRecoveryRhythmEngine';
 import { buildWeeklyAthleteInsights } from '../utils/buildWeeklyAthleteInsights';
+import { predictiveRecoveryEngine, PredictiveRecoveryState, PredictiveStatus } from '../services/predictiveRecoveryEngine';
+import { buildPredictiveInsights } from '../utils/buildPredictiveInsights';
+import { autonomousRecoveryEngine, AutonomousStatus } from '../services/autonomousRecoveryEngine';
+import { recoveryPressureArbitrator, ArbitrationDecision } from '../services/recoveryPressureArbitrator';
+import { buildAutonomousInsights } from '../utils/buildAutonomousInsights';
 
 export default function AthleteDashboardPage() {
   const [data, setData] = useState<DailyAthleteFlow | null>(null);
@@ -49,7 +54,12 @@ export default function AthleteDashboardPage() {
   const [momentum, setMomentum] = useState<HabitMomentumMetrics | null>(null);
   const [behavioralState, setBehavioralState] = useState<BehavioralState | null>(null);
   const [weeklyRhythm, setWeeklyRhythm] = useState<WeeklyRhythmState | null>(null);
+  const [predictiveStatus, setPredictiveStatus] = useState<PredictiveStatus | null>(null);
+  const [autonomousStatus, setAutonomousStatus] = useState<AutonomousStatus | null>(null);
+  const [arbitration, setArbitration] = useState<ArbitrationDecision | null>(null);
   const [weeklyInsights, setWeeklyInsights] = useState<string[]>([]);
+  const [predictiveInsights, setPredictiveInsights] = useState<string[]>([]);
+  const [autonomousInsights, setAutonomousInsights] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
 
@@ -122,16 +132,46 @@ export default function AthleteDashboardPage() {
       const wRhythm = weeklyRecoveryRhythmEngine.detectRhythm(rhythmInput);
       const wInsights = buildWeeklyAthleteInsights(rhythmInput);
 
+      const pInput = {
+        historyDays: history.length,
+        recentSkippedMeals,
+        hydrationInconsistency: 14 - (hydrationConsistency / 100 * 14),
+        lowRecoveryStreaks: history.slice(-5).filter(h => h.recoveryScore < 50).length,
+        excessiveRegenerations: recentRegenerations,
+        mobilityDropoff: history.length > 7 ? (history.slice(-7).reduce((acc, h) => acc + h.mobilityAdherence, 0) < history.slice(-14, -7).reduce((acc, h) => acc + h.mobilityAdherence, 0)) : false,
+        decliningCompletion: false
+      };
+
+      const pStatus = predictiveRecoveryEngine.analyze(pInput);
+      const pInsights = buildPredictiveInsights(pInput);
+
+      const aStatus = autonomousRecoveryEngine.detectState({
+        predictiveStatus: pStatus,
+        behavioralState: bState,
+        weeklyRhythm: wRhythm,
+        momentum: momentumMetrics,
+        regenerationPressure: (recentRegenerations / 15) * 100 // Normalized to daily budget
+      });
+      const aDecision = recoveryPressureArbitrator.arbitrate(aStatus);
+      const aInsights = buildAutonomousInsights(aStatus, aDecision);
+
       setMomentum(momentumMetrics);
       setBehavioralState(bState);
       setWeeklyRhythm(wRhythm);
       setWeeklyInsights(wInsights);
+      setPredictiveStatus(pStatus);
+      setPredictiveInsights(pInsights);
+      setAutonomousStatus(aStatus);
+      setArbitration(aDecision);
+      setAutonomousInsights(aInsights);
 
       // Take a daily snapshot for memory tracking
       await snapshotManager.takeDailySnapshot({
+        date: new Date().toISOString().split('T')[0],
         recoveryScore: recovery?.recoveryScore || 0,
         hydrationProgress,
-        calorieAdherence: 0,
+        calorieAdherence: 1, // Using latest local context
+        mobilityAdherence: streaks.mobilityCount > 0 ? 1 : 0,
         fatigueLevel: (100 - (recovery?.recoveryScore || 100))
       });
 
@@ -148,11 +188,18 @@ export default function AthleteDashboardPage() {
         return 'High';
       };
 
-      const recommendation = buildDailyAthleteFlow(recovery, streaks, {
-        hydrationProgress,
-        calorieBalance: 0, // Simplified for now
-        activityLevel: mapApiActivityLevel(profileData.profile?.activityLevel)
-      }, athleteDna);
+      const recommendation = buildDailyAthleteFlow(
+        recovery, 
+        streaks, 
+        {
+          hydrationProgress,
+          calorieBalance: 0, // Simplified for now
+          activityLevel: mapApiActivityLevel(profileData.profile?.activityLevel)
+        }, 
+        athleteDna,
+        aStatus,
+        aDecision
+      );
       
       // Get reports from localStorage
       const savedReports = localStorage.getItem('workout_reports_v1');
@@ -290,7 +337,7 @@ export default function AthleteDashboardPage() {
                     <span className="text-[10px] font-black uppercase tracking-widest">Adaptive Rhythm Insights</span>
                   </div>
                   <div className="space-y-3">
-                    {weeklyInsights.map((insight, idx) => (
+                    {[...weeklyInsights, ...predictiveInsights, ...autonomousInsights].map((insight, idx) => (
                       <p key={idx} className="text-sm text-cream/80 flex items-start gap-2">
                         <span className="text-gold mt-1">✨</span>
                         {insight}
@@ -300,26 +347,76 @@ export default function AthleteDashboardPage() {
                 </div>
               )}
 
-              {momentum && behavioralState && weeklyRhythm && (
-                <div className="grid sm:grid-cols-2 gap-4">
+              {momentum && behavioralState && weeklyRhythm && predictiveStatus && autonomousStatus && (
+                <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                  <div className="bg-white/5 rounded-2xl p-6 border border-white/10 flex flex-col justify-between relative overflow-hidden group">
+                    <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:scale-110 transition-transform">
+                       <ShieldCheck className="w-16 h-16" />
+                    </div>
+                    <div className="flex items-center gap-2 text-gold mb-4">
+                       <Zap className="w-4 h-4" />
+                       <span className="text-[10px] font-black uppercase tracking-widest">Autonomous Recovery OS</span>
+                    </div>
+                    <div className="space-y-4">
+                      <div>
+                        <div className="text-xs text-cream/50 uppercase tracking-widest font-bold mb-1">Operating State</div>
+                        <div className="text-xl font-serif text-white capitalize">{autonomousStatus.state}</div>
+                      </div>
+                      <div className="flex items-center gap-4">
+                        <div>
+                          <div className="text-xs text-cream/50 uppercase tracking-widest font-bold mb-1">System Load</div>
+                          <div className={`text-sm font-bold ${autonomousStatus.systemLoad > 70 ? 'text-red-400' : 'text-emerald-400'}`}>
+                            {autonomousStatus.systemLoad}%
+                          </div>
+                        </div>
+                        <div>
+                          <div className="text-xs text-cream/50 uppercase tracking-widest font-bold mb-1">Bias</div>
+                          <div className="text-sm text-gold font-bold uppercase">
+                            {autonomousStatus.optimizationPressure > 50 ? 'Optimize' : 'Stabilize'}
+                          </div>
+                        </div>
+                      </div>
+                      <div>
+                         <div className="text-xs text-cream/50 uppercase tracking-widest font-bold mb-1">Routing Strategy</div>
+                         <div className="text-[11px] text-cream/80 font-medium italic">"{autonomousStatus.routingBias}"</div>
+                      </div>
+                    </div>
+                  </div>
+
                   <div className="bg-white/5 rounded-2xl p-6 border border-white/10 flex flex-col justify-between relative overflow-hidden group">
                     <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:scale-110 transition-transform">
                        <Gauge className="w-16 h-16" />
                     </div>
                     <div className="flex items-center gap-2 text-gold mb-4">
-                       <Gauge className="w-4 h-4" />
-                       <span className="text-[10px] font-black uppercase tracking-widest">Continuity Engine</span>
+                       <Zap className="w-4 h-4" />
+                       <span className="text-[10px] font-black uppercase tracking-widest">Predictive Stability</span>
                     </div>
                     <div className="space-y-4">
                       <div>
-                        <div className="text-xs text-cream/50 uppercase tracking-widest font-bold mb-1">Momentum Status</div>
-                        <div className="text-xl font-serif text-white">{momentum.overallMomentum}</div>
+                        <div className="text-xs text-cream/50 uppercase tracking-widest font-bold mb-1">State Window</div>
+                        <div className="text-xl font-serif text-white capitalize">{predictiveStatus.state.replace('_', ' ')}</div>
+                      </div>
+                      <div className="flex items-center gap-4">
+                        <div>
+                          <div className="text-xs text-cream/50 uppercase tracking-widest font-bold mb-1">Drift</div>
+                          <div className={`text-sm font-bold ${predictiveStatus.state === 'stable_growth' ? 'text-emerald-400' : 'text-orange-400'}`}>
+                            {predictiveStatus.state === 'stable_growth' ? '↑ Positive' : '↓ Negative'}
+                          </div>
+                        </div>
+                        <div>
+                          <div className="text-xs text-cream/50 uppercase tracking-widest font-bold mb-1">Pressure</div>
+                          <div className={`text-sm font-bold uppercase ${
+                            predictiveStatus.burnoutPressure === 'high' ? 'text-red-400' : 
+                            predictiveStatus.burnoutPressure === 'moderate' ? 'text-orange-400' : 
+                            'text-emerald-400'
+                          }`}>
+                            {predictiveStatus.burnoutPressure}
+                          </div>
+                        </div>
                       </div>
                       <div>
-                        <div className="text-xs text-cream/50 uppercase tracking-widest font-bold mb-1">Consistency Shield</div>
-                        <div className="text-sm text-cream font-medium">
-                          {momentum.resilienceScore > 75 ? 'Active & Resilient' : 'Vulnerable'} ({momentum.resilienceScore}%)
-                        </div>
+                         <div className="text-xs text-cream/50 uppercase tracking-widest font-bold mb-1">Stability Analysis</div>
+                         <div className="text-[11px] text-cream/80 font-medium italic">"{predictiveStatus.stabilityWindow}"</div>
                       </div>
                     </div>
                   </div>

@@ -15,7 +15,7 @@ export interface GeneratedMeal {
 
 export const mealGenerationService = {
   async generateMeals(context: MealGenerationContext): Promise<{ meals: GeneratedMeal[] }> {
-    const data = await safeFetch('/api/ai/generate-meal', {
+    const data = await safeFetch('/api/generate-meal', {
       method: 'POST',
       body: JSON.stringify({ context }),
       timeoutMs: 20000
@@ -24,7 +24,7 @@ export const mealGenerationService = {
   },
   
   async generateMealTimeline(context: any): Promise<any> {
-    const data = await safeFetch('/api/ai/generate-meal-timeline', {
+    const data = await safeFetch('/api/generate-meal-timeline', {
       method: 'POST',
       body: JSON.stringify({ context }),
       timeoutMs: 20000

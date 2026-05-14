@@ -7,6 +7,7 @@ export interface AthleteMemorySnapshot {
   recoveryScore: number;
   hydrationProgress: number;
   calorieAdherence: number;
+  mobilityAdherence: number; // 0 or 1
   fatigueLevel: number;
   preferredVibe?: string;
 }

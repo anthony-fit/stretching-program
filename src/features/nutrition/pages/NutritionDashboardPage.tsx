@@ -47,6 +47,10 @@ import { normalizeAIError } from '../../../lib/errors/normalizeAIError';
 import { buildHabitMomentum } from '../../athlete/utils/buildHabitMomentum';
 import { behavioralContinuityEngine, BehavioralState } from '../../athlete/services/behavioralContinuityEngine';
 import { weeklyRecoveryRhythmEngine, WeeklyRhythmState } from '../../athlete/services/weeklyRecoveryRhythmEngine';
+import { predictiveRecoveryEngine, PredictiveRecoveryState, PredictiveStatus } from '../../athlete/services/predictiveRecoveryEngine';
+import { autonomousRecoveryEngine, AutonomousStatus } from '../../athlete/services/autonomousRecoveryEngine';
+import { recoveryPressureArbitrator } from '../../athlete/services/recoveryPressureArbitrator';
+import { regenerationGuard } from '../services/regenerationGuard';
 import { snapshotManager } from '../../athlete-memory/services/snapshotManager';
 
 export default function NutritionDashboardPage() {
@@ -59,6 +63,8 @@ export default function NutritionDashboardPage() {
   const [generatingSlots, setGeneratingSlots] = useState<Record<string, boolean>>({});
   const [behavioralState, setBehavioralState] = useState<BehavioralState | null>(null);
   const [weeklyRhythm, setWeeklyRhythm] = useState<WeeklyRhythmState | null>(null);
+  const [predictiveStatus, setPredictiveStatus] = useState<PredictiveStatus | null>(null);
+  const [autonomousStatus, setAutonomousStatus] = useState<AutonomousStatus | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   // Coaching States
@@ -158,8 +164,31 @@ export default function NutritionDashboardPage() {
         });
         setWeeklyRhythm(wRhythm);
 
+        const pStatus = predictiveRecoveryEngine.analyze({
+          historyDays: history.length,
+          recentSkippedMeals,
+          hydrationInconsistency: 14 - (hydrationConsistency / 100 * 14),
+          lowRecoveryStreaks: history.slice(-5).filter(h => h.recoveryScore < 50).length,
+          excessiveRegenerations: recentRegenerations,
+          mobilityDropoff: history.length > 7 ? (history.slice(-7).reduce((acc, h) => acc + h.mobilityAdherence, 0) < history.slice(-14, -7).reduce((acc, h) => acc + h.mobilityAdherence, 0)) : false,
+          decliningCompletion: false
+        });
+        setPredictiveStatus(pStatus);
+        
+        const aStatus = autonomousRecoveryEngine.detectState({
+          predictiveStatus: pStatus,
+          behavioralState: bState,
+          weeklyRhythm: wRhythm,
+          momentum: momentumMetrics,
+          regenerationPressure: (recentRegenerations / 15) * 100
+        });
+        setAutonomousStatus(aStatus);
+        
+        // Add arbitration state compute if needed, but we typically do it inline or via derived state
+        // For consistency with AthleteDashboardPage, let's just use aStatus in the context building
+
         const bContext = behavioralContinuityEngine.getCoachingContext(bState);
-        const context = buildNutritionInsightContext(state.profile, mealLogs, hydration, activity, bState, bContext, momentumMetrics.overallMomentum, wRhythm);
+        const context = buildNutritionInsightContext(state.profile, mealLogs, hydration, activity, bState, bContext, momentumMetrics.overallMomentum, wRhythm, pStatus, aStatus);
         handleFetchCoaching(context);
       }
     }
@@ -172,7 +201,7 @@ export default function NutritionDashboardPage() {
     setIsCoachingLoading(true);
     try {
       const bContext = behavioralState ? behavioralContinuityEngine.getCoachingContext(behavioralState) : undefined;
-      const context = contextOverride || buildNutritionInsightContext(profile!, meals, hydrationLogs, activityHistory, behavioralState || undefined, bContext, undefined, weeklyRhythm || undefined);
+      const context = contextOverride || buildNutritionInsightContext(profile!, meals, hydrationLogs, activityHistory, behavioralState || undefined, bContext, undefined, weeklyRhythm || undefined, predictiveStatus || undefined, autonomousStatus || undefined);
       const insight = await nutritionCoachingService.getDailyInsight(context);
       setCoachingInsight(insight);
     } catch (e) {
@@ -203,7 +232,7 @@ export default function NutritionDashboardPage() {
     await nutritionPersistenceService.saveProfileState({ profile: newProfile });
 
     // Refresh coaching with new profile
-    const context = buildNutritionInsightContext(newProfile, meals, hydrationLogs, activityHistory);
+    const context = buildNutritionInsightContext(newProfile, meals, hydrationLogs, activityHistory, undefined, undefined, undefined, undefined, undefined, autonomousStatus || undefined);
     handleFetchCoaching(context);
   };
 
@@ -224,6 +253,15 @@ export default function NutritionDashboardPage() {
       const results = await Promise.allSettled(
         emptySlotIndices.map(async (idx) => {
           const slot = timeline.slots[idx];
+          
+          const dailyRegenCount = timeline.slots.reduce((acc, s) => acc + (s.regenerationCount || 0), 0);
+          const guard = await regenerationGuard.checkStatus(idx, dailyRegenCount);
+          const arbitration = autonomousStatus ? recoveryPressureArbitrator.arbitrate(autonomousStatus) : undefined;
+          
+          if (!guard.canRegenerate) {
+            throw new Error(guard.isRateLimited ? 'Daily adaptive budget exceeded.' : 'Capacity limit reached for this window.');
+          }
+
           const mode = adaptiveMealTimelineEngine.determineMode({
             recoveryScore: 80,
             workoutIntensity: 'moderate',
@@ -231,7 +269,10 @@ export default function NutritionDashboardPage() {
             recentSkippedMeals: 0,
             regenerationCount: slot.regenerationCount || 0,
             behavioralState: behavioralState || undefined,
-            weeklyRhythm: weeklyRhythm || undefined
+            weeklyRhythm: weeklyRhythm || undefined,
+            predictiveState: predictiveStatus?.state,
+            autonomousState: autonomousStatus?.state,
+            arbitration
           });
           const modeContext = adaptiveMealTimelineEngine.getPromptContext(mode);
 
@@ -280,6 +321,15 @@ export default function NutritionDashboardPage() {
 
     setGeneratingSlots(prev => ({ ...prev, [idx]: true }));
     try {
+      const dailyRegenCount = timeline.slots.reduce((acc, s) => acc + (s.regenerationCount || 0), 0);
+      const guard = await regenerationGuard.checkStatus(idx, dailyRegenCount);
+      const arbitration = autonomousStatus ? recoveryPressureArbitrator.arbitrate(autonomousStatus) : undefined;
+      
+      if (!guard.canRegenerate) {
+         alert(guard.isRateLimited ? "Daily adaptive cycle limit reached. Stabilizing current timeline." : "Capacity limit reached for this window. Try micro-habits instead.");
+         return;
+      }
+
       const mode = adaptiveMealTimelineEngine.determineMode({
         recoveryScore: 80,
         workoutIntensity: 'moderate',
@@ -287,7 +337,10 @@ export default function NutritionDashboardPage() {
         recentSkippedMeals: 0,
         regenerationCount: (slot.regenerationCount || 0) + 1,
         behavioralState: behavioralState || undefined,
-        weeklyRhythm: weeklyRhythm || undefined
+        weeklyRhythm: weeklyRhythm || undefined,
+        predictiveState: predictiveStatus?.state,
+        autonomousState: autonomousStatus?.state,
+        arbitration
       });
       const modeContext = adaptiveMealTimelineEngine.getPromptContext(mode);
 
@@ -329,7 +382,7 @@ export default function NutritionDashboardPage() {
     
     // Refresh coaching after hydration update
     if (profile) {
-      const context = buildNutritionInsightContext(profile, meals, updated, activityHistory);
+      const context = buildNutritionInsightContext(profile, meals, updated, activityHistory, undefined, undefined, undefined, undefined, undefined, autonomousStatus || undefined);
       handleFetchCoaching(context);
     }
   };
@@ -386,7 +439,7 @@ export default function NutritionDashboardPage() {
 
     // Refresh coaching after meal log
     if (profile) {
-      const context = buildNutritionInsightContext(profile, updated, hydrationLogs, activityHistory);
+      const context = buildNutritionInsightContext(profile, updated, hydrationLogs, activityHistory, undefined, undefined, undefined, undefined, undefined, autonomousStatus || undefined);
       handleFetchCoaching(context);
     }
   };
@@ -447,7 +500,7 @@ export default function NutritionDashboardPage() {
       const updatedMeals = await nutritionPersistenceService.getMeals();
       setMeals(updatedMeals);
       
-      const newContext = buildNutritionInsightContext(profile, updatedMeals, hydrationLogs, activityHistory);
+      const newContext = buildNutritionInsightContext(profile, updatedMeals, hydrationLogs, activityHistory, undefined, undefined, undefined, undefined, undefined, autonomousStatus || undefined);
       handleFetchCoaching(newContext);
 
       const updatedSlots = [...timeline.slots];
@@ -635,7 +688,7 @@ export default function NutritionDashboardPage() {
                   transition={{ delay: 0.4 }}
                 >
                   <GenerateMealCard
-                    context={buildMealGenerationContext(profile!, dailyMeals, hydrationLogs, activityHistory)}
+                    context={buildMealGenerationContext(profile!, dailyMeals, hydrationLogs, activityHistory, {}, autonomousStatus || undefined, autonomousStatus ? recoveryPressureArbitrator.arbitrate(autonomousStatus) : undefined)}
                     loggedFoods={Array.from(
                       new Set(meals.slice(-100).map((m) => m.name))
                     ).slice(0, 30)}
@@ -656,7 +709,7 @@ export default function NutritionDashboardPage() {
                         streakEngine.incrementNutritionStreak();
                         nutritionPersistenceService.getMeals().then(updated => {
                           setMeals(updated);
-                          const newContext = buildNutritionInsightContext(profile, updated, hydrationLogs, activityHistory);
+                          const newContext = buildNutritionInsightContext(profile, updated, hydrationLogs, activityHistory, undefined, undefined, undefined, undefined, undefined, autonomousStatus || undefined);
                           handleFetchCoaching(newContext);
                         });
                       });

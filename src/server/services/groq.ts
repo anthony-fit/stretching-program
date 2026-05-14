@@ -36,30 +36,44 @@ export async function generateNutritionCoachingViaLLM(
 ) {
   validateGroqEnvironment(apiKey);
 
+  if (!payload) {
+    console.error("[AI] Payload missing for nutrition coaching");
+    return { message: "Keep focusing on your goals.", type: "tip", timestamp: Date.now() };
+  }
+
   const groqOptions: any = { apiKey };
   if (baseURL && baseURL !== "undefined" && baseURL !== "null" && baseURL.startsWith("http")) groqOptions.baseURL = baseURL;
 
   const groq = new Groq(groqOptions);
 
-  const isNutrition = payload.type === 'nutrition';
+  const isNutrition = payload?.type === 'nutrition';
 
   const prompt = isNutrition ? `
     You are an elite sports nutrition coach.
     Provide a hyper-concise (1 sentence) coaching insight.
     
     Context:
-    - Calories Remaining: ${payload.caloriesRemaining}
-    - Protein Target Met: ${payload.hasMetProtein}
-    - Hydration Met: ${payload.hasMetHydration}
-    - Net Calories (Consumed - Burned): ${payload.netCalories}
-    - Behavioral State: ${payload.behavioralState || 'Stable'}
-    - Behavioral Context: ${payload.behavioralContext || 'None'}
-    - Weekly Rhythm: ${payload.weeklyRhythm || 'maintenance'}
+    - Calories Remaining: ${payload?.caloriesRemaining || 'Unknown'}
+    - Protein Target Met: ${payload?.hasMetProtein || 'Unknown'}
+    - Hydration Met: ${payload?.hasMetHydration || 'Unknown'}
+    - Net Calories (Consumed - Burned): ${payload?.netCalories || 'Unknown'}
+    - Behavioral State: ${payload?.behavioralState || 'Stable'}
+    - Behavioral Context: ${payload?.behavioralContext || 'None'}
+    - Weekly Rhythm: ${payload?.weeklyRhythm || 'maintenance'}
+    - Predictive State: ${payload?.predictiveState || 'stable_growth'}
+    - Burnout Pressure: ${payload?.burnoutPressure || 'low'}
+    - Stability Window: ${payload?.recoveryStabilityWindow || 'stable'}
+    - Autonomous Operating State: ${payload?.autonomousState || 'stabilize'}
+    - AROS Routing Bias: ${payload?.routingBias || 'Standard maintenance'}
+    - System Load: ${payload?.systemLoad || 0}%
+    - Stabilization Priority: ${payload?.stabilizationPriority || 50}
     
     Guidance:
-    If the athlete is overwhelmed or fatigued, reduce cognitive overload and adapt emotional tone.
-    If unstable_rhythm, simplify goals. If progressive_build, intensify encouragement.
-    Focus on one actionable, empowering tip. Do not use generic praise.
+    - If autonomous_state is simplify or recover, or system_load > 70: Reduce complexity aggressively, avoid high-fatigue recipes, emphasize hydration and sleep.
+    - If autonomous_state is optimize: Encourage high precision, timing of nutrients around workouts, and elite performance.
+    - If autonomous_state is rebuild: Focus on foundational consistency and micro-wins.
+    - Tone: ${payload?.autonomousState === 'optimize' ? 'High-Performance' : payload?.autonomousState === 'rebuild' || payload?.autonomousState === 'simplify' ? 'Rehabilitative' : 'Supportive'}
+    - Focus on ONE actionable, empowering tip. Do not use generic praise.
     
     Format:
     {
@@ -71,10 +85,10 @@ export async function generateNutritionCoachingViaLLM(
     Provide a hyper-concise (1 sentence) coaching insight.
     
     Context:
-    - Recovery Score: ${payload.recoveryScore}
-    - Readiness: ${payload.readiness}
-    - Hydration Score: ${payload.hydrationScore}
-    - Muscle Tension: ${payload.muscleTensionScore}
+    - Recovery Score: ${payload?.recoveryScore || 'Unknown'}
+    - Readiness: ${payload?.readiness || 'Unknown'}
+    - Hydration Score: ${payload?.hydrationScore || 'Unknown'}
+    - Muscle Tension: ${payload?.muscleTensionScore || 'Unknown'}
     
     Guidance:
     Provide strict, actionable advice to immediately improve their readiness.
@@ -129,6 +143,11 @@ export async function generateCompositionBlueprintViaLLM(
   console.log(`[DEBUG groq.ts] /generate-composition called. summary string chars: ${exerciseDatabaseSummary?.length}`);
   validateGroqEnvironment(apiKey);
 
+  if (!prefs) {
+    console.error("[AI] Prefs missing for composition generation");
+    return [];
+  }
+
   const groqOptions: any = { apiKey };
   if (baseURL && baseURL !== "undefined" && baseURL !== "null" && baseURL.startsWith("http")) groqOptions.baseURL = baseURL;
 
@@ -138,14 +157,14 @@ export async function generateCompositionBlueprintViaLLM(
     You are an expert fitness video director and master composition planner.
     The user has requested a routine.
 
-    Goal/Type: ${prefs.type}
-    Duration (minutes): ${prefs.durationMinutes || parseInt(prefs.duration) / 60} (Target Total Seconds: ${(prefs.durationMinutes || parseInt(prefs.duration) / 60) * 60})
-    Level: ${prefs.level}
-    Focus: ${prefs.focus}
-    Pain Points: ${prefs.painPoints?.join(", ") || "None"}
-    Equipment: ${prefs.equipment?.join(", ") || "None"}
-    Intensity: ${prefs.intensity}
-    Coaching Style: ${prefs.coachingStyle}
+    Goal/Type: ${prefs?.type || 'Standard'}
+    Duration (minutes): ${prefs?.durationMinutes || (prefs?.duration ? parseInt(prefs.duration) / 60 : 30)}
+    Level: ${prefs?.level || 'Beginner'}
+    Focus: ${prefs?.focus || 'Full Body'}
+    Pain Points: ${prefs?.painPoints?.join(", ") || "None"}
+    Equipment: ${prefs?.equipment?.join(", ") || "None"}
+    Intensity: ${prefs?.intensity || 'Low'}
+    Coaching Style: ${prefs?.coachingStyle || 'Encouraging'}
 
     CRITICAL RULES:
     1. The sum of all scene 'duration's MUST perfectly match the Target Total Seconds exactly.
@@ -245,13 +264,18 @@ export async function generateRoutineScript(
 ) {
   validateGroqEnvironment(apiKey);
 
+  if (!exercises || !Array.isArray(exercises)) {
+    console.warn("[AI] No exercises provided for script generation");
+    return [];
+  }
+
   const groqOptions: any = { apiKey };
   if (baseURL && baseURL !== "undefined" && baseURL !== "null" && baseURL.startsWith("http")) groqOptions.baseURL = baseURL;
 
   const groq = new Groq(groqOptions);
 
   const prompt = `
-    Create a professional fitness voiceover script for a ${context?.intensity || "standard"} intensity ${goal} workout routine.
+    Create a professional fitness voiceover script for a ${context?.intensity || "standard"} intensity ${goal || 'Recovery'} workout routine.
 
     Exercises:
     ${exercises
@@ -317,6 +341,11 @@ export async function generateMealPlanViaLLM(
 ) {
   validateGroqEnvironment(apiKey);
 
+  if (!context) {
+    console.error("[AI] Context missing for meal plan");
+    return { meals: [] };
+  }
+
   const groqOptions: any = { apiKey };
   if (baseURL && baseURL !== "undefined" && baseURL !== "null" && baseURL.startsWith("http")) groqOptions.baseURL = baseURL;
 
@@ -328,18 +357,18 @@ export async function generateMealPlanViaLLM(
     DO NOT recount calories or macros. Use the data provided.
 
     Context:
-    - Remaining Calories: ${context.remainingCalories} kcal
-    - Remaining Protein: ${context.remainingProtein}g
-    - Remaining Carbs: ${context.remainingCarbs}g
-    - Remaining Fat: ${context.remainingFat}g
-    - Recovery State: ${context.recoveryState}
-    - Diet Type: ${context.options?.dietType || 'Any'}
-    - Allergies: ${context.options?.allergies?.join(', ') || 'None'}
-    - Preferred Foods: ${context.options?.preferredFoods?.join(', ') || 'None'}
-    - Available Ingredients: ${context.options?.availableIngredients?.join(', ') || 'None'}
-    - Cooking Time Limit: ${context.options?.cookingTimeTarget || 'Any'} mins
-    - Session Intensity: ${context.options?.sessionIntensity || 'moderate'}
-    - Meal Type: ${context.options?.mealType || 'Any'}
+    - Remaining Calories: ${context?.remainingCalories || 'Unknown'} kcal
+    - Remaining Protein: ${context?.remainingProtein || 'Unknown'}g
+    - Remaining Carbs: ${context?.remainingCarbs || 'Unknown'}g
+    - Remaining Fat: ${context?.remainingFat || 'Unknown'}g
+    - Recovery State: ${context?.recoveryState || 'Unknown'}
+    - Diet Type: ${context?.options?.dietType || 'Any'}
+    - Allergies: ${context?.options?.allergies?.join(', ') || 'None'}
+    - Preferred Foods: ${context?.options?.preferredFoods?.join(', ') || 'None'}
+    - Available Ingredients: ${context?.options?.availableIngredients?.join(', ') || 'None'}
+    - Cooking Time Limit: ${context?.options?.cookingTimeTarget || 'Any'} mins
+    - Session Intensity: ${context?.options?.sessionIntensity || 'moderate'}
+    - Meal Type: ${context?.options?.mealType || 'Any'}
 
     CRITICAL RULES:
     1. If recovery state is "high_fatigue", prioritize nutrient-dense, easy to digest, higher potassium/magnesium options.
@@ -404,6 +433,11 @@ export async function generateMealTimelineViaLLM(
 ) {
   validateGroqEnvironment(apiKey);
 
+  if (!context) {
+    console.error("[AI] Context missing for meal timeline");
+    return { slots: [] };
+  }
+
   const groqOptions: any = { apiKey };
   if (baseURL && baseURL !== "undefined" && baseURL !== "null" && baseURL.startsWith("http")) groqOptions.baseURL = baseURL;
 
@@ -417,12 +451,12 @@ export async function generateMealTimelineViaLLM(
     Use the provided deterministic slot targets as guidelines to come up with appropriate meal ideas.
 
     Context:
-    - Recovery State: ${context.recoveryScore || 'Unknown'}
-    - Workout Intensity: ${context.workoutIntensity || 'Unknown'}
-    - Logged/Preferred Foods: ${context.loggedFoods?.join(', ') || 'None'}
+    - Recovery State: ${context?.recoveryScore || 'Unknown'}
+    - Workout Intensity: ${context?.workoutIntensity || 'Unknown'}
+    - Logged/Preferred Foods: ${context?.loggedFoods?.join(', ') || 'None'}
     
-    Adaptive Intelligence Mode: ${context.adaptiveMode || 'balanced'}
-    Guideline: ${context.adaptiveContext || 'Provide balanced, nutrient-dense whole foods.'}
+    Adaptive Intelligence Mode: ${context?.adaptiveMode || 'balanced'}
+    Guideline: ${context?.adaptiveContext || 'Provide balanced, nutrient-dense whole foods.'}
     
     If regenerating (regeneration count > 0), DIVERSIFY the choice significantly from typical preferences.
 
@@ -566,6 +600,10 @@ export async function generateSEOMetadata(
 ) {
   validateGroqEnvironment(apiKey);
 
+  if (!exercises) {
+    return { title: goal || "Workout", description: "Elite fitness routine." };
+  }
+
   const groqOptions: any = { apiKey };
   if (baseURL && baseURL !== "undefined" && baseURL !== "null" && baseURL.startsWith("http")) groqOptions.baseURL = baseURL;
 
@@ -574,8 +612,8 @@ export async function generateSEOMetadata(
   const prompt = `
     Generate SEO metadata for a fitness workout video.
 
-    Goal: ${goal}
-    Exercises: ${exercises.map((ex) => ex.name).join(", ")}
+    Goal: ${goal || 'General Fitness'}
+    Exercises: ${Array.isArray(exercises) ? exercises.map((ex) => ex?.name).join(", ") : 'Fixed Routine'}
 
     Return JSON with: title, description, keywords, ogImage suggestion.
   `;
@@ -619,6 +657,10 @@ export async function generateSocialCaptions(
 ) {
   validateGroqEnvironment(apiKey);
 
+  if (!exercises) {
+    return { caption: "Check out this new workout!", hashtags: ["fitness", "stretching"], hooks: ["Ready for a change?"] };
+  }
+
   const groqOptions: any = { apiKey };
   if (baseURL && baseURL !== "undefined" && baseURL !== "null" && baseURL.startsWith("http")) groqOptions.baseURL = baseURL;
 
@@ -627,9 +669,9 @@ export async function generateSocialCaptions(
   const prompt = `
     Generate social media captions for a short-form fitness workout video.
 
-    Goal: ${goal}
+    Goal: ${goal || 'Fitness'}
     Creator Mode: ${creatorMode || "standard"}
-    Exercises: ${exercises.map((ex) => ex.name).join(", ")}
+    Exercises: ${Array.isArray(exercises) ? exercises.map((ex) => ex?.name).join(", ") : 'Various'}
 
     Return JSON strictly conforming to this object with no markdown:
     { "caption": "string", "hashtags": ["string"], "hooks": ["string"] }

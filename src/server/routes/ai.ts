@@ -19,7 +19,8 @@ router.post("/nutrition/coach", async (req, res) => {
     const payload = req.body;
     const result = await generateNutritionCoachingViaLLM(
       process.env.GROQ_API_KEY || "",
-      payload
+      payload,
+      process.env.GROQ_BASE_URL
     );
     res.json(result);
   } catch (error: any) {
@@ -34,10 +35,14 @@ router.post("/nutrition/coach", async (req, res) => {
 router.post("/generate-meal", async (req, res) => {
   try {
     const { context } = req.body;
+    if (!context) {
+      console.warn("[AI ROUTE] generate-meal: Missing context in request body", req.body);
+    }
 
     const result = await generateMealPlanViaLLM(
       process.env.GROQ_API_KEY || "",
-      context
+      context,
+      process.env.GROQ_BASE_URL
     );
 
     res.json(result);
@@ -54,10 +59,14 @@ router.post("/generate-meal", async (req, res) => {
 router.post("/generate-meal-timeline", async (req, res) => {
   try {
     const { context } = req.body;
+    if (!context) {
+      console.warn("[AI ROUTE] generate-meal-timeline: Missing context in request body", req.body);
+    }
 
     const result = await generateMealTimelineViaLLM(
       process.env.GROQ_API_KEY || "",
-      context
+      context,
+      process.env.GROQ_BASE_URL
     );
 
     res.json(result);
@@ -77,7 +86,8 @@ router.post("/classify-intent", async (req, res) => {
 
     const result = await classifyWorkoutIntentViaLLM(
       process.env.GROQ_API_KEY || "",
-      promptText
+      promptText,
+      process.env.GROQ_BASE_URL
     );
 
     res.json(result);

@@ -10,6 +10,12 @@ export interface AdaptiveEngineInput {
   behavioralState?: BehavioralState;
   weeklyRhythm?: WeeklyRhythmState;
   predictiveState?: string;
+  autonomousState?: string;
+  arbitration?: {
+    shouldSimplify: boolean;
+    maxRecipeComplexity: number;
+    routingStrategy: string;
+  };
 }
 
 export type TimelineRecommendationMode = 
@@ -22,6 +28,23 @@ export type TimelineRecommendationMode =
 
 export const adaptiveMealTimelineEngine = {
   determineMode(input: AdaptiveEngineInput): TimelineRecommendationMode {
+    // AROS Overrides
+    if (input.autonomousState === 'simplify' || input.arbitration?.shouldSimplify) {
+      return 'low-fatigue';
+    }
+    if (input.autonomousState === 'recover') {
+      return 'recovery-biased';
+    }
+    if (input.autonomousState === 'optimize') {
+      return 'high-performance';
+    }
+    if (input.autonomousState === 'rebuild') {
+      return 'balanced';
+    }
+    if (input.autonomousState === 'deload') {
+      return 'recovery-biased';
+    }
+
     if (input.predictiveState === 'burnout_risk' || input.predictiveState === 'recovery_drift') {
       return 'low-fatigue';
     }

@@ -22,8 +22,14 @@ export async function safeFetch<T>(url: string, options: SafeFetchOptions = {}):
     const id = setTimeout(() => controller.abort(), timeoutMs);
 
     try {
+      const headers = {
+        'Content-Type': 'application/json',
+        ...(fetchOptions.headers || {})
+      };
+
       const response = await fetch(url, {
         ...fetchOptions,
+        headers,
         signal: controller.signal as AbortSignal,
       });
 

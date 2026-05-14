@@ -20,6 +20,13 @@ export interface MealGenerationContext {
   recoveryState: 'low' | 'optimal' | 'high_fatigue';
   profile: NutritionProfile;
   options: MealGenerationOptions;
+  autonomousState?: string;
+  routingBias?: string;
+  arbitration?: {
+    shouldSimplify: boolean;
+    maxRecipeComplexity: number;
+    routingStrategy: string;
+  };
 }
 
 export function buildMealGenerationContext(
@@ -27,9 +34,11 @@ export function buildMealGenerationContext(
   meals: MealEntry[],
   hydration: HydrationLog[],
   activity: CaloriesBurnedEntry[],
-  options: MealGenerationOptions = {}
+  options: MealGenerationOptions = {},
+  autonomousStatus?: { state: string; routingBias: string; optimizationPressure: number; stabilizationPriority: number; systemLoad: number },
+  arbitration?: { shouldSimplify: boolean; maxRecipeComplexity: number; routingStrategy: string }
 ): MealGenerationContext {
-  const insightContext = buildNutritionInsightContext(profile, meals, hydration, activity);
+  const insightContext = buildNutritionInsightContext(profile, meals, hydration, activity, undefined, undefined, undefined, undefined, undefined, autonomousStatus);
 
   const remainingProtein = Math.max(0, insightContext.proteinTarget - insightContext.proteinConsumed);
   const remainingCarbs = Math.max(0, insightContext.carbsTarget - insightContext.carbsConsumed);
@@ -50,6 +59,9 @@ export function buildMealGenerationContext(
     remainingFat,
     recoveryState,
     profile,
-    options
+    options,
+    autonomousState: autonomousStatus?.state,
+    routingBias: autonomousStatus?.routingBias,
+    arbitration
   };
 }

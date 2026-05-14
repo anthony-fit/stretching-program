@@ -30,6 +30,13 @@ export interface NutritionInsightContext {
   decisionFatigue?: string;
   weeklyRhythm?: string;
   predictiveState?: string;
+  burnoutPressure?: string;
+  recoveryStabilityWindow?: string;
+  autonomousState?: string;
+  routingBias?: string;
+  optimizationPressure?: number;
+  stabilizationPriority?: number;
+  systemLoad?: number;
 }
 
 export function buildNutritionInsightContext(
@@ -41,7 +48,8 @@ export function buildNutritionInsightContext(
   behavioralContext?: string,
   decisionFatigue?: string,
   weeklyRhythm?: string,
-  predictiveState?: string
+  predictiveStatus?: { state: string; burnoutPressure: string; stabilityWindow: string },
+  autonomousStatus?: { state: string; routingBias: string; optimizationPressure: number; stabilizationPriority: number; systemLoad: number }
 ): NutritionInsightContext {
   const today = new Date().toDateString();
 
@@ -87,6 +95,13 @@ export function buildNutritionInsightContext(
     behavioralContext,
     decisionFatigue,
     weeklyRhythm,
-    predictiveState
+    predictiveState: predictiveStatus?.state,
+    burnoutPressure: predictiveStatus?.burnoutPressure,
+    recoveryStabilityWindow: predictiveStatus?.stabilityWindow,
+    autonomousState: autonomousStatus?.state,
+    routingBias: autonomousStatus?.routingBias,
+    optimizationPressure: autonomousStatus?.optimizationPressure,
+    stabilizationPriority: autonomousStatus?.stabilizationPriority,
+    systemLoad: autonomousStatus?.systemLoad
   };
 }

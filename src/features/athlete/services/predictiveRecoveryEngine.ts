@@ -15,9 +15,26 @@ export interface PredictiveEngineInput {
   decliningCompletion: boolean; // recent week vs previous week
 }
 
+export interface PredictiveStatus {
+  state: PredictiveRecoveryState;
+  burnoutPressure: 'low' | 'moderate' | 'high';
+  stabilityWindow: string;
+}
+
 export const predictiveRecoveryEngine = {
   detectState(input: PredictiveEngineInput): PredictiveRecoveryState {
-    if (input.historyDays < 7) return 'stable_growth';
+    const status = this.analyze(input);
+    return status.state;
+  },
+
+  analyze(input: PredictiveEngineInput): PredictiveStatus {
+    if (input.historyDays < 7) {
+      return { 
+        state: 'stable_growth', 
+        burnoutPressure: 'low', 
+        stabilityWindow: 'Initial baseline' 
+      };
+    }
 
     let riskFactors = 0;
     if (input.recentSkippedMeals > 3) riskFactors++;
@@ -27,22 +44,31 @@ export const predictiveRecoveryEngine = {
     if (input.mobilityDropoff) riskFactors += 2;
     if (input.decliningCompletion) riskFactors += 2;
 
+    let state: PredictiveRecoveryState = 'rebound_recovery';
+    let pressure: 'low' | 'moderate' | 'high' = 'low';
+    
     if (riskFactors >= 5) {
-      return 'burnout_risk';
+      state = 'burnout_risk';
+      pressure = 'high';
+    } else if (riskFactors >= 3) {
+      state = 'recovery_drift';
+      pressure = 'moderate';
+    } else if (riskFactors >= 1 && input.decliningCompletion) {
+      state = 'inconsistent_cycle';
+      pressure = 'low';
+    } else if (input.lowRecoveryStreaks === 0 && riskFactors <= 1 && input.recentSkippedMeals === 0) {
+      state = 'stable_growth';
+      pressure = 'low';
     }
 
-    if (riskFactors >= 3) {
-      return 'recovery_drift';
-    }
+    const window = input.decliningCompletion || input.mobilityDropoff 
+      ? 'Declining (48h trend)' 
+      : (riskFactors === 0 ? 'Optimal (14-day stable)' : 'Mixed stability');
 
-    if (riskFactors >= 1 && input.decliningCompletion) {
-       return 'inconsistent_cycle';
-    }
-
-    if (input.lowRecoveryStreaks === 0 && riskFactors <= 1 && input.recentSkippedMeals === 0) {
-       return 'stable_growth';
-    }
-
-    return 'rebound_recovery';
+    return {
+      state,
+      burnoutPressure: pressure,
+      stabilityWindow: window
+    };
   }
 };

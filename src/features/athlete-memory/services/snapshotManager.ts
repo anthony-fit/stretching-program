@@ -18,6 +18,7 @@ export const snapshotManager = {
       recoveryScore: data.recoveryScore ?? existing?.recoveryScore ?? 0,
       hydrationProgress: data.hydrationProgress ?? existing?.hydrationProgress ?? 0,
       calorieAdherence: data.calorieAdherence ?? existing?.calorieAdherence ?? 0,
+      mobilityAdherence: data.mobilityAdherence ?? existing?.mobilityAdherence ?? 0,
       fatigueLevel: data.fatigueLevel ?? existing?.fatigueLevel ?? 0,
       preferredVibe: data.preferredVibe || existing?.preferredVibe || 'minimal',
     };
