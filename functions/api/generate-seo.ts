@@ -1,6 +1,17 @@
 import { generateSEOMetadata } from "../../src/server/services/groq";
 import { jsonResponse, errorResponse } from "../utils/json";
 
+export async function onRequestOptions(context: any) {
+  return new Response(null, {
+    status: 204,
+    headers: {
+      "Access-Control-Allow-Origin": "*",
+      "Access-Control-Allow-Methods": "GET, HEAD, POST, OPTIONS",
+      "Access-Control-Allow-Headers": "Content-Type, Authorization",
+    },
+  });
+}
+
 export async function onRequestPost(context: any) {
   try {
     const { request, env } = context;

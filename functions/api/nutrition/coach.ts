@@ -1,24 +1,38 @@
+import { jsonResponse, errorResponse } from '../../utils/json';
+
+export async function onRequestOptions(context: any) {
+  return new Response(null, {
+    status: 204,
+    headers: {
+      "Access-Control-Allow-Origin": "*",
+      "Access-Control-Allow-Methods": "GET, HEAD, POST, OPTIONS",
+      "Access-Control-Allow-Headers": "Content-Type, Authorization",
+    },
+  });
+}
+
 export async function onRequest(context: any) {
   const { request, env } = context;
 
   if (request.method !== 'POST') {
-    return new Response(JSON.stringify({ error: 'Method not allowed' }), { 
-      status: 405,
-      headers: { 'Content-Type': 'application/json' }
-    });
+    return errorResponse('Method not allowed', 405);
   }
 
   try {
-    const payload = await request.json();
+    let payload;
+    try {
+      payload = await request.json();
+    } catch (e) {
+      return errorResponse('Invalid JSON payload', 400);
+    }
     const groqKey = env.GROQ_API_KEY;
 
     if (!groqKey) {
-      // Return deterministic fallback if key missing
-      return new Response(JSON.stringify({
+      return jsonResponse({
         message: "Coach access restricted. Please configure your environment to enable AI insights.",
         type: 'tip',
         timestamp: Date.now()
-      }), { headers: { 'Content-Type': 'application/json' } });
+      });
     }
 
     let prompt = '';
@@ -39,7 +53,7 @@ export async function onRequest(context: any) {
         Hydration: ${payload.hydrationScore}%
         Nutrition: ${payload.nutritionScore}%
         Mobility Consistency: ${payload.mobilityScore}%
-        Warnings: ${payload.warnings.join(', ')}
+        Warnings: ${payload.warnings?.join(', ') || 'None'}
         ${dnaContext}
         
         RULES:
@@ -52,13 +66,13 @@ export async function onRequest(context: any) {
     } else {
       prompt = `
         You are an elite performance nutrition coach for Stretching Pro.
-        User Goal: ${payload.goal}
-        Activity Level: ${payload.activityLevel}
+        User Goal: ${payload.goal || 'Fitness'}
+        Activity Level: ${payload.activityLevel || 'Moderate'}
         
         DAILY DATA:
-        Calories: ${payload.caloriesConsumed} / ${payload.caloriesTarget} (Remaining: ${payload.caloriesRemaining})
-        Macros: P ${payload.proteinConsumed}g/${payload.proteinTarget}g, C ${payload.carbsConsumed}g/${payload.carbsTarget}g, F ${payload.fatConsumed}g/${payload.fatTarget}g
-        Hydration: ${payload.hydrationLiters}L / ${payload.hydrationTarget}L
+        Calories: ${payload.caloriesConsumed || 0} / ${payload.caloriesTarget || 2000} (Remaining: ${payload.caloriesRemaining || 2000})
+        Macros: P ${payload.proteinConsumed || 0}g/${payload.proteinTarget || 100}g, C ${payload.carbsConsumed || 0}g/${payload.carbsTarget || 200}g, F ${payload.fatConsumed || 0}g/${payload.fatTarget || 70}g
+        Hydration: ${payload.hydrationLiters || 0}L / ${payload.hydrationTarget || 2}L
         
         RULES:
         1. Concise (max 3 sentences).
@@ -69,7 +83,7 @@ export async function onRequest(context: any) {
       `;
     }
 
-    const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+    const response = await fetch(env.GROQ_BASE_URL || env.GROQ_API_URL || 'https://api.groq.com/openai/v1/chat/completions', {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${groqKey}`,
@@ -85,23 +99,16 @@ export async function onRequest(context: any) {
     const data = await response.json();
     const coachResponse = JSON.parse(data.choices[0].message.content);
     
-    return new Response(JSON.stringify({
+    return jsonResponse({
       ...coachResponse,
       timestamp: Date.now()
-    }), {
-      headers: { 
-        'Content-Type': 'application/json',
-        'Cache-Control': 'private, max-age=3600'
-      }
     });
 
   } catch (e) {
-    return new Response(JSON.stringify({ 
+    return jsonResponse({ 
       message: "Steady progress is the key. Keep tracking your intake to build long-term success.",
       type: 'motivation',
       timestamp: Date.now()
-    }), { 
-      headers: { 'Content-Type': 'application/json' } 
     });
   }
 }

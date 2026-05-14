@@ -1,38 +1,47 @@
 import { classifyWorkoutIntentViaLLM } from '../../src/server/services/groq';
+import { jsonResponse, errorResponse } from '../utils/json';
+
+export async function onRequestOptions(context: any) {
+  return new Response(null, {
+    status: 204,
+    headers: {
+      "Access-Control-Allow-Origin": "*",
+      "Access-Control-Allow-Methods": "GET, HEAD, POST, OPTIONS",
+      "Access-Control-Allow-Headers": "Content-Type, Authorization",
+    },
+  });
+}
 
 export async function onRequest(context: any) {
   const { request, env } = context;
 
   if (request.method !== "POST") {
-    return new Response(JSON.stringify({ error: "Method not allowed" }), {
-      status: 405,
-      headers: { "Content-Type": "application/json" },
-    });
+    return errorResponse("Method not allowed", 405);
   }
 
   try {
-    const { promptText } = await request.json();
+    let payload;
+    try {
+      payload = await request.json();
+    } catch (e) {
+      return errorResponse("Invalid JSON payload", 400);
+    }
+    const { promptText } = payload;
     
     if (!promptText) {
-      return new Response(JSON.stringify({ error: "Missing promptText" }), {
-        status: 400,
-        headers: { "Content-Type": "application/json" },
-      });
+      return errorResponse("Missing promptText", 400);
     }
 
     const apiKey = env.GROQ_API_KEY;
     if (!apiKey) {
-      return new Response(JSON.stringify({ error: "GROQ API Key missing" }), {
-        status: 500,
-        headers: { "Content-Type": "application/json" },
-      });
+      return errorResponse("GROQ API Key missing", 500);
     }
 
     // Wrap the LLM call in a Promise to attach a timeout
     const timeout = new Promise((resolve) => setTimeout(() => resolve(null), 8000));
     
     let intentData = await Promise.race([
-      classifyWorkoutIntentViaLLM(apiKey, promptText, env.GROQ_API_URL),
+      classifyWorkoutIntentViaLLM(apiKey, promptText, env.GROQ_API_URL || env.GROQ_BASE_URL),
       timeout
     ]);
 
@@ -41,19 +50,13 @@ export async function onRequest(context: any) {
        intentData = fallbackParser(promptText);
     }
 
-    return new Response(JSON.stringify(intentData), {
-      status: 200,
-      headers: { "Content-Type": "application/json" },
-    });
+    return jsonResponse(intentData);
   } catch (error) {
     console.error("Classify Intent Error:", error);
     // Even on error, we don't want a dead end. Use deterministic fallback.
     const url = new URL(request.url);
     const intentData = fallbackParser(url.searchParams.get("promptText") || "");
-    return new Response(JSON.stringify(intentData), {
-      status: 200,
-      headers: { "Content-Type": "application/json" },
-    });
+    return jsonResponse(intentData);
   }
 }
 
