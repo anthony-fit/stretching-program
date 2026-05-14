@@ -12,16 +12,18 @@ export function EzoicVideo() {
     if (el.hasAttribute('data-initialized')) return;
     el.setAttribute('data-initialized', 'true');
 
+    // Isolate from React re-renders: create a native DOM element for Ezoic
+    const playerTarget = document.createElement("div");
+    playerTarget.id = `ezoic-player-mount-${id}`;
+    playerTarget.className = "w-full h-full";
+    el.appendChild(playerTarget);
+
     const w = window as any;
     if (!Array.isArray(w.openVideoPlayers)) {
       w.openVideoPlayers = [];
     }
     
-    // Check if element is already registered (handles React Strict Mode double-mounts)
-    const isRegistered = w.openVideoPlayers.some((p: any) => p.target === `ezoic-player-${id}`);
-    if (!isRegistered) {
-      w.openVideoPlayers.push({ target: `ezoic-player-${id}` });
-    }
+    w.openVideoPlayers.push({ target: playerTarget });
 
     if (!document.querySelector('script[src="https://open.video/video.js"]')) {
       const script = document.createElement('script');
@@ -36,7 +38,10 @@ export function EzoicVideo() {
     // Cleanup on unmount/route transitions to prevent memory leaks
     return () => {
       if (Array.isArray(w.openVideoPlayers)) {
-         w.openVideoPlayers = w.openVideoPlayers.filter((p: any) => p.target !== `ezoic-player-${id}`);
+         w.openVideoPlayers = w.openVideoPlayers.filter((p: any) => p.target !== playerTarget);
+      }
+      if (el.contains(playerTarget)) {
+        el.removeChild(playerTarget);
       }
       el.removeAttribute('data-initialized');
     };

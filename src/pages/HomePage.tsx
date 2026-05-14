@@ -665,18 +665,18 @@ function LiveDemoHero() {
     if (el.hasAttribute("data-initialized")) return;
     el.setAttribute("data-initialized", "true");
 
+    // Isolate from React re-renders: create a native DOM element for Ezoic
+    const playerTarget = document.createElement("div");
+    playerTarget.id = "ezoic-player-mount";
+    playerTarget.className = "w-full h-full";
+    el.appendChild(playerTarget);
+
     const w = window as any;
     if (!Array.isArray(w.openVideoPlayers)) {
       w.openVideoPlayers = [];
     }
 
-    // Check if element is already registered (handles React Strict Mode double-mounts)
-    const isRegistered = w.openVideoPlayers.some(
-      (p: any) => p.target === "home-ezoic-player",
-    );
-    if (!isRegistered) {
-      w.openVideoPlayers.push({ target: "home-ezoic-player" });
-    }
+    w.openVideoPlayers.push({ target: playerTarget });
 
     if (!document.querySelector('script[src="https://open.video/video.js"]')) {
       const script = document.createElement("script");
@@ -692,8 +692,11 @@ function LiveDemoHero() {
     return () => {
       if (Array.isArray(w.openVideoPlayers)) {
         w.openVideoPlayers = w.openVideoPlayers.filter(
-          (p: any) => p.target !== "home-ezoic-player",
+          (p: any) => p.target !== playerTarget,
         );
+      }
+      if (el.contains(playerTarget)) {
+        el.removeChild(playerTarget);
       }
       el.removeAttribute("data-initialized");
     };
