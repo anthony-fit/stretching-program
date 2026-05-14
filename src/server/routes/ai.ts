@@ -6,10 +6,70 @@ import {
   generateSEOMetadata,
   generateSocialCaptions,
   classifyWorkoutIntentViaLLM,
+  generateMealPlanViaLLM,
+  generateMealTimelineViaLLM,
+  generateNutritionCoachingViaLLM
 } from "../services/groq.ts";
 
 
 const router = Router();
+
+router.post("/nutrition/coach", async (req, res) => {
+  try {
+    const payload = req.body;
+    const result = await generateNutritionCoachingViaLLM(
+      process.env.GROQ_API_KEY || "",
+      payload
+    );
+    res.json(result);
+  } catch (error: any) {
+    console.error("[AI ROUTE] nutrition/coach failed", error);
+    res.status(500).json({
+      error: "Failed to generate coaching",
+      details: error?.message || "Unknown error",
+    });
+  }
+});
+
+router.post("/generate-meal", async (req, res) => {
+  try {
+    const { context } = req.body;
+
+    const result = await generateMealPlanViaLLM(
+      process.env.GROQ_API_KEY || "",
+      context
+    );
+
+    res.json(result);
+  } catch (error: any) {
+    console.error("[AI ROUTE] generate-meal failed", error);
+
+    res.status(500).json({
+      error: "Failed to generate meal plan",
+      details: error?.message || "Unknown error",
+    });
+  }
+});
+
+router.post("/generate-meal-timeline", async (req, res) => {
+  try {
+    const { context } = req.body;
+
+    const result = await generateMealTimelineViaLLM(
+      process.env.GROQ_API_KEY || "",
+      context
+    );
+
+    res.json(result);
+  } catch (error: any) {
+    console.error("[AI ROUTE] generate-meal-timeline failed", error);
+
+    res.status(500).json({
+      error: "Failed to generate meal timeline",
+      details: error?.message || "Unknown error",
+    });
+  }
+});
 
 router.post("/classify-intent", async (req, res) => {
   try {

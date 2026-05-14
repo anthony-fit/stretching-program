@@ -9,12 +9,13 @@ export const LOCAL_STORAGE_KEYS = {
 
 export const INDEXED_DB_CONFIG = {
   NAME: 'stretchingpro_nutrition_db',
-  VERSION: 1,
+  VERSION: 2,
   STORES: {
     MEALS: 'meals',
     HYDRATION: 'hydration',
     CALORIES_BURNED: 'calories_burned',
     BODY_METRICS: 'body_metrics',
-    COACHING_LOG: 'coaching_log'
+    COACHING_LOG: 'coaching_log',
+    TIMELINES: 'timelines'
   }
 };

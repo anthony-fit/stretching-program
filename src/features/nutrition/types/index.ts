@@ -42,7 +42,34 @@ export interface FoodItem {
   servingUnit: string;
 }
 
-export type MealCategory = 'breakfast' | 'lunch' | 'dinner' | 'snack';
+export type MealCategory = 'breakfast' | 'lunch' | 'dinner' | 'snack' | 'pre_workout' | 'post_workout';
+
+export interface TimelineMealSlot {
+  category: MealCategory;
+  targetCalories: number;
+  targetProtein: number; // in grams
+  targetCarbs: number; // in grams
+  targetFat: number; // in grams
+  plannedTime?: string; // HH:mm format optional
+  generatedRecipe?: {
+    title: string;
+    ingredients: string[];
+    prepSteps: string[];
+    tags: string[];
+    estimatedPrepTime: string;
+  };
+  loggedMealId?: string;
+  status?: 'pending' | 'skipped' | 'ate_half' | 'completed';
+  regenerationCount?: number;
+}
+
+export interface DailyMealTimeline {
+  id: string; // YYYY-MM-DD or unique ID
+  date: string; // YYYY-MM-DD
+  slots: TimelineMealSlot[];
+  isActive: boolean;
+  createdAt: number;
+}
 
 export interface MealEntry {
   id: string;

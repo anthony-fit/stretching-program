@@ -8,7 +8,9 @@ import {
   Calendar, 
   Sparkles,
   Target,
-  ArrowRight
+  ArrowRight,
+  Gauge,
+  Brain
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
@@ -34,11 +36,20 @@ import { AdaptiveAthleteDNA, WeeklyEvolutionMetrics } from '../../athlete-memory
 import { AdaptiveAthleteDNACard } from '../../athlete-memory/components/AdaptiveAthleteDNACard';
 import { WeeklyEvolutionSummary } from '../../athlete-memory/components/WeeklyEvolutionSummary';
 
+import { buildHabitMomentum, HabitMomentumMetrics } from '../utils/buildHabitMomentum';
+import { behavioralContinuityEngine, BehavioralState } from '../services/behavioralContinuityEngine';
+import { weeklyRecoveryRhythmEngine, WeeklyRhythmState } from '../services/weeklyRecoveryRhythmEngine';
+import { buildWeeklyAthleteInsights } from '../utils/buildWeeklyAthleteInsights';
+
 export default function AthleteDashboardPage() {
   const [data, setData] = useState<DailyAthleteFlow | null>(null);
   const [reports, setReports] = useState<WorkoutReport[]>([]);
   const [dna, setDna] = useState<AdaptiveAthleteDNA | null>(null);
   const [evolution, setEvolution] = useState<WeeklyEvolutionMetrics | null>(null);
+  const [momentum, setMomentum] = useState<HabitMomentumMetrics | null>(null);
+  const [behavioralState, setBehavioralState] = useState<BehavioralState | null>(null);
+  const [weeklyRhythm, setWeeklyRhythm] = useState<WeeklyRhythmState | null>(null);
+  const [weeklyInsights, setWeeklyInsights] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
 
@@ -47,8 +58,74 @@ export default function AthleteDashboardPage() {
       const recovery = await recoveryInsightService.getReadinessState();
       const streaks = streakEngine.getStreaks();
       const profileData = await nutritionPersistenceService.getProfileState();
+      const timelines = await nutritionPersistenceService.getAllTimelines();
       
       const hydrationProgress = (recovery?.hydrationScore || 0) / 100;
+
+      // Extract stats from timelines
+      let recentSkippedMeals = 0;
+      let recentCompletedMeals = 0;
+      let recentRegenerations = 0;
+      
+      timelines.slice(-3).forEach(t => {
+        t.slots.forEach(s => {
+           if (s.status === 'skipped') recentSkippedMeals++;
+           if (s.status === 'completed' || s.status === 'ate_half') recentCompletedMeals++;
+           if (s.regenerationCount) recentRegenerations += s.regenerationCount;
+        });
+      });
+
+      const history = await snapshotManager.getAthleteHistory();
+      
+      let recoveryTrend = recovery?.recoveryScore || 0;
+      if (history.length > 0) {
+        recoveryTrend = history.slice(-7).reduce((acc, h) => acc + h.recoveryScore, 0) / Math.min(history.length, 7);
+      }
+
+      let hydrationConsistency = hydrationProgress * 100;
+      if (history.length > 0) {
+         hydrationConsistency = (history.slice(-7).reduce((acc, h) => acc + h.hydrationProgress, 0) / Math.min(history.length, 7)) * 100;
+      }
+      
+      const momentumMetrics = buildHabitMomentum({
+        streakNutrition: streaks.nutritionLogCount,
+        streakMobility: streaks.mobilityCount,
+        recentSkippedMeals,
+        recentCompletedMeals,
+        hydrationConsistency,
+        recoveryTrend
+      });
+
+      const bState = behavioralContinuityEngine.detectState({
+        momentum: momentumMetrics,
+        recentRegenerations,
+        recentSkippedMeals,
+        recentLowRecoveryDays: history.slice(-3).filter(h => h.recoveryScore < 50).length
+      });
+
+      const avgMealCompletion = timelines.length ? timelines.reduce((acc, t) => {
+         let completed = 0;
+         t.slots.forEach(s => { if(s.status === 'completed' || s.status === 'ate_half') completed++; });
+         return acc + (t.slots.length > 0 ? (completed / t.slots.length) * 100 : 0);
+      }, 0) / timelines.length : 0;
+
+      const rhythmInput = {
+        historyDays: history.length,
+        avgMobilityAdherence: (streaks.mobilityCount / 7) * 100,
+        avgHydrationConsistency: hydrationConsistency,
+        avgMealCompletion,
+        avgRecoveryScore: recoveryTrend,
+        burnoutIndicators: (recentSkippedMeals > 2 ? 1 : 0) + (bState === 'overwhelmed' || bState === 'fatigued' ? 1 : 0),
+        regenerationFrequency: recentRegenerations
+      };
+
+      const wRhythm = weeklyRecoveryRhythmEngine.detectRhythm(rhythmInput);
+      const wInsights = buildWeeklyAthleteInsights(rhythmInput);
+
+      setMomentum(momentumMetrics);
+      setBehavioralState(bState);
+      setWeeklyRhythm(wRhythm);
+      setWeeklyInsights(wInsights);
 
       // Take a daily snapshot for memory tracking
       await snapshotManager.takeDailySnapshot({
@@ -58,8 +135,6 @@ export default function AthleteDashboardPage() {
         fatigueLevel: (100 - (recovery?.recoveryScore || 100))
       });
 
-      // Fetch longitudinal memory
-      const history = await snapshotManager.getAthleteHistory();
       const athleteDna = generateAdaptiveDNA(history);
       const weeklyEvolution = analyzeWeeklyEvolution(history);
       
@@ -205,8 +280,75 @@ export default function AthleteDashboardPage() {
 
         {/* Consistency Engine */}
         <div className="grid lg:grid-cols-3 gap-8">
-           <div className="lg:col-span-2">
+           <div className="lg:col-span-2 space-y-8">
               <HabitStreakCard streaks={streaks} />
+              
+              {weeklyInsights.length > 0 && (
+                <div className="bg-gradient-to-r from-blue-900/40 to-charcoal border border-blue-500/20 rounded-2xl p-6">
+                  <div className="flex items-center gap-3 mb-4 text-blue-400">
+                    <Brain className="w-5 h-5" />
+                    <span className="text-[10px] font-black uppercase tracking-widest">Adaptive Rhythm Insights</span>
+                  </div>
+                  <div className="space-y-3">
+                    {weeklyInsights.map((insight, idx) => (
+                      <p key={idx} className="text-sm text-cream/80 flex items-start gap-2">
+                        <span className="text-gold mt-1">✨</span>
+                        {insight}
+                      </p>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {momentum && behavioralState && weeklyRhythm && (
+                <div className="grid sm:grid-cols-2 gap-4">
+                  <div className="bg-white/5 rounded-2xl p-6 border border-white/10 flex flex-col justify-between relative overflow-hidden group">
+                    <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:scale-110 transition-transform">
+                       <Gauge className="w-16 h-16" />
+                    </div>
+                    <div className="flex items-center gap-2 text-gold mb-4">
+                       <Gauge className="w-4 h-4" />
+                       <span className="text-[10px] font-black uppercase tracking-widest">Continuity Engine</span>
+                    </div>
+                    <div className="space-y-4">
+                      <div>
+                        <div className="text-xs text-cream/50 uppercase tracking-widest font-bold mb-1">Momentum Status</div>
+                        <div className="text-xl font-serif text-white">{momentum.overallMomentum}</div>
+                      </div>
+                      <div>
+                        <div className="text-xs text-cream/50 uppercase tracking-widest font-bold mb-1">Consistency Shield</div>
+                        <div className="text-sm text-cream font-medium">
+                          {momentum.resilienceScore > 75 ? 'Active & Resilient' : 'Vulnerable'} ({momentum.resilienceScore}%)
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div className="bg-white/5 rounded-2xl p-6 border border-white/10 flex flex-col justify-between relative overflow-hidden group">
+                    <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:scale-110 transition-transform">
+                       <Activity className="w-16 h-16" />
+                    </div>
+                    <div className="flex items-center gap-2 text-blue-400 mb-4">
+                       <Activity className="w-4 h-4" />
+                       <span className="text-[10px] font-black uppercase tracking-widest">Weekly Rhythm</span>
+                    </div>
+                    <div className="space-y-4">
+                      <div>
+                        <div className="text-xs text-cream/50 uppercase tracking-widest font-bold mb-1">Rhythm State</div>
+                        <div className="text-xl font-serif text-white capitalize">
+                          {weeklyRhythm.replace('_', ' ')}
+                        </div>
+                      </div>
+                      <div>
+                        <div className="text-xs text-cream/50 uppercase tracking-widest font-bold mb-1">Adaptive Pressure</div>
+                        <div className="text-sm text-cream font-medium capitalize">
+                          {behavioralState.replace('_', ' ')} / {momentum.recoveryDiscipline < 50 ? 'High' : 'Optimal'} Recovery Drift
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
            </div>
            <div>
               <AthleteProgressTimeline reports={reports} />

@@ -25,13 +25,23 @@ export interface NutritionInsightContext {
   hasMetProtein: boolean;
   hasMetHydration: boolean;
   streakDays: number;
+  behavioralState?: string;
+  behavioralContext?: string;
+  decisionFatigue?: string;
+  weeklyRhythm?: string;
+  predictiveState?: string;
 }
 
 export function buildNutritionInsightContext(
   profile: NutritionProfile,
   meals: MealEntry[],
   hydration: HydrationLog[],
-  activity: CaloriesBurnedEntry[]
+  activity: CaloriesBurnedEntry[],
+  behavioralState?: string,
+  behavioralContext?: string,
+  decisionFatigue?: string,
+  weeklyRhythm?: string,
+  predictiveState?: string
 ): NutritionInsightContext {
   const today = new Date().toDateString();
 
@@ -72,6 +82,11 @@ export function buildNutritionInsightContext(
     activityLevel: profile.activityLevel,
     hasMetProtein: proteinConsumed >= profile.targets.protein,
     hasMetHydration: hydrationLiters >= profile.hydrationTarget,
-    streakDays: 1 // Placeholder for now
+    streakDays: 1, // Placeholder for now
+    behavioralState,
+    behavioralContext,
+    decisionFatigue,
+    weeklyRhythm,
+    predictiveState
   };
 }

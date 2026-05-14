@@ -29,6 +29,97 @@ const withTimeout = <T>(promise: Promise<T>, timeoutMs: number): Promise<T> => {
   ]);
 };
 
+export async function generateNutritionCoachingViaLLM(
+  apiKey: string,
+  payload: any,
+  baseURL?: string
+) {
+  validateGroqEnvironment(apiKey);
+
+  const groqOptions: any = { apiKey };
+  if (baseURL && baseURL !== "undefined" && baseURL !== "null" && baseURL.startsWith("http")) groqOptions.baseURL = baseURL;
+
+  const groq = new Groq(groqOptions);
+
+  const isNutrition = payload.type === 'nutrition';
+
+  const prompt = isNutrition ? `
+    You are an elite sports nutrition coach.
+    Provide a hyper-concise (1 sentence) coaching insight.
+    
+    Context:
+    - Calories Remaining: ${payload.caloriesRemaining}
+    - Protein Target Met: ${payload.hasMetProtein}
+    - Hydration Met: ${payload.hasMetHydration}
+    - Net Calories (Consumed - Burned): ${payload.netCalories}
+    - Behavioral State: ${payload.behavioralState || 'Stable'}
+    - Behavioral Context: ${payload.behavioralContext || 'None'}
+    - Weekly Rhythm: ${payload.weeklyRhythm || 'maintenance'}
+    
+    Guidance:
+    If the athlete is overwhelmed or fatigued, reduce cognitive overload and adapt emotional tone.
+    If unstable_rhythm, simplify goals. If progressive_build, intensify encouragement.
+    Focus on one actionable, empowering tip. Do not use generic praise.
+    
+    Format:
+    {
+       "message": "sentence",
+       "type": "motivation" // or "warning", "tip"
+    }
+  ` : `
+    You are an elite athletic recovery coach.
+    Provide a hyper-concise (1 sentence) coaching insight.
+    
+    Context:
+    - Recovery Score: ${payload.recoveryScore}
+    - Readiness: ${payload.readiness}
+    - Hydration Score: ${payload.hydrationScore}
+    - Muscle Tension: ${payload.muscleTensionScore}
+    
+    Guidance:
+    Provide strict, actionable advice to immediately improve their readiness.
+    
+    Format:
+    {
+       "message": "sentence",
+       "type": "motivation" // or "warning", "tip"
+    }
+  `;
+
+  const chatCompletion = await withTimeout(
+    groq.chat.completions.create({
+      messages: [
+        {
+          role: "system",
+          content:
+            "You are an elite fitness AI coach. Return pure JSON without formatting. Limit advice to one sentence.",
+        },
+        {
+          role: "user",
+          content: prompt,
+        },
+      ],
+      model: "llama-3.3-70b-versatile",
+      temperature: 0.6,
+      max_tokens: 500,
+      response_format: { type: "json_object" },
+    }),
+    12000
+  );
+
+  const text = chatCompletion.choices[0]?.message?.content || "{}";
+  try {
+    const parsed = JSON.parse(text);
+    return {
+      message: parsed.message || "Keep pushing forward consistently.",
+      type: parsed.type || "tip",
+      timestamp: Date.now()
+    };
+  } catch (e) {
+    throw new Error('Failed to parse coaching response');
+  }
+}
+
 export async function generateCompositionBlueprintViaLLM(
   apiKey: string,
   prefs: any,
@@ -216,6 +307,179 @@ export async function generateRoutineScript(
     console.error("[GROQ JSON PARSE FAILED]");
     console.error(e);
     return [];
+  }
+}
+
+export async function generateMealPlanViaLLM(
+  apiKey: string,
+  context: any,
+  baseURL?: string,
+) {
+  validateGroqEnvironment(apiKey);
+
+  const groqOptions: any = { apiKey };
+  if (baseURL && baseURL !== "undefined" && baseURL !== "null" && baseURL.startsWith("http")) groqOptions.baseURL = baseURL;
+
+  const groq = new Groq(groqOptions);
+
+  const prompt = `
+    You are an expert sports nutritionist and culinary planner.
+    Generate a meal plan or recipe based strictly on this context. 
+    DO NOT recount calories or macros. Use the data provided.
+
+    Context:
+    - Remaining Calories: ${context.remainingCalories} kcal
+    - Remaining Protein: ${context.remainingProtein}g
+    - Remaining Carbs: ${context.remainingCarbs}g
+    - Remaining Fat: ${context.remainingFat}g
+    - Recovery State: ${context.recoveryState}
+    - Diet Type: ${context.options?.dietType || 'Any'}
+    - Allergies: ${context.options?.allergies?.join(', ') || 'None'}
+    - Preferred Foods: ${context.options?.preferredFoods?.join(', ') || 'None'}
+    - Available Ingredients: ${context.options?.availableIngredients?.join(', ') || 'None'}
+    - Cooking Time Limit: ${context.options?.cookingTimeTarget || 'Any'} mins
+    - Session Intensity: ${context.options?.sessionIntensity || 'moderate'}
+    - Meal Type: ${context.options?.mealType || 'Any'}
+
+    CRITICAL RULES:
+    1. If recovery state is "high_fatigue", prioritize nutrient-dense, easy to digest, higher potassium/magnesium options.
+    2. If session intensity was "high", bump hydration and glycogen refill recommendations (if macro space permits).
+    3. Return STRICTLY a JSON object without markdown.
+    4. Provide exactly 1 or more meal options that total to APPROXIMATELY the remaining macros.
+
+    Output format:
+    {
+      "meals": [
+        {
+          "title": "Meal Title",
+          "calories": number,
+          "protein": number,
+          "carbs": number,
+          "fat": number,
+          "prepTime": number,
+          "tags": ["string"],
+          "ingredients": ["string"],
+          "steps": ["string"]
+        }
+      ]
+    }
+  `;
+
+  const chatCompletion = await withTimeout(
+    groq.chat.completions.create({
+      messages: [
+        {
+          role: "system",
+          content: "You are an elite sports nutritionist. Output exactly JSON, no markdown.",
+        },
+        {
+          role: "user",
+          content: prompt,
+        },
+      ],
+      model: "llama-3.3-70b-versatile",
+      temperature: 0.6,
+      max_tokens: 2000,
+      response_format: { type: "json_object" },
+    }),
+    15000
+  );
+
+  const text = chatCompletion.choices[0]?.message?.content || "{}";
+
+  try {
+    const parsed = JSON.parse(text);
+    if (parsed.data && Array.isArray(parsed.data.meals)) return parsed.data;
+    return parsed;
+  } catch (e) {
+    console.error("[AI] MEAL PLAN PARSE ERROR:", e);
+    return { meals: [] };
+  }
+}
+
+export async function generateMealTimelineViaLLM(
+  apiKey: string,
+  context: any,
+  baseURL?: string,
+) {
+  validateGroqEnvironment(apiKey);
+
+  const groqOptions: any = { apiKey };
+  if (baseURL && baseURL !== "undefined" && baseURL !== "null" && baseURL.startsWith("http")) groqOptions.baseURL = baseURL;
+
+  const groq = new Groq(groqOptions);
+
+  const prompt = `
+    You are an expert sports nutritionist and culinary planner.
+    You must populate the empty slots in a deterministic meal timeline.
+    Generate ONLY lightweight recipe payloads (ideas, ingredients, preparation steps).
+    DO NOT invent nutrition totals or recalculate calories/macros.
+    Use the provided deterministic slot targets as guidelines to come up with appropriate meal ideas.
+
+    Context:
+    - Recovery State: ${context.recoveryScore || 'Unknown'}
+    - Workout Intensity: ${context.workoutIntensity || 'Unknown'}
+    - Logged/Preferred Foods: ${context.loggedFoods?.join(', ') || 'None'}
+    
+    Adaptive Intelligence Mode: ${context.adaptiveMode || 'balanced'}
+    Guideline: ${context.adaptiveContext || 'Provide balanced, nutrient-dense whole foods.'}
+    
+    If regenerating (regeneration count > 0), DIVERSIFY the choice significantly from typical preferences.
+
+    Timeline Slots:
+    ${JSON.stringify(context.slots, null, 2)}
+
+    CRITICAL RULES:
+    1. NEVER invent nutrition totals. Target macros are informational only.
+    2. Recipes should APPROXIMATE targets naturally.
+    3. Return STRICTLY a JSON object without markdown.
+    4. You MUST provide exactly one recipe for each slot category requested.
+
+    Output format:
+    {
+      "slots": [
+        {
+          "category": "breakfast",
+          "recipe": {
+            "title": "Meal Title",
+            "ingredients": ["string"],
+            "prepSteps": ["string"],
+            "tags": ["string"],
+            "estimatedPrepTime": "15 mins"
+          }
+        }
+      ]
+    }
+  `;
+
+  const chatCompletion = await withTimeout(
+    groq.chat.completions.create({
+      messages: [
+        {
+          role: "system",
+          content: "You are an elite sports nutritionist. Output exactly JSON, no markdown.",
+        },
+        {
+          role: "user",
+          content: prompt,
+        },
+      ],
+      model: "llama-3.3-70b-versatile",
+      temperature: 0.6,
+      max_tokens: 2500,
+      response_format: { type: "json_object" },
+    }),
+    20000
+  );
+
+  const text = chatCompletion.choices[0]?.message?.content || "{}";
+
+  try {
+    const parsed = JSON.parse(text);
+    return parsed;
+  } catch (e) {
+    console.error("[AI] TIMELINE MEAL PLAN PARSE ERROR:", e);
+    return { slots: [] };
   }
 }
 

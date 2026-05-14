@@ -6,7 +6,8 @@ import {
   MealEntry, 
   HydrationLog, 
   CaloriesBurnedEntry, 
-  BodyMetricEntry 
+  BodyMetricEntry,
+  DailyMealTimeline
 } from '../types';
 
 export const nutritionPersistenceService = {
@@ -17,6 +18,33 @@ export const nutritionPersistenceService = {
 
   async saveProfileState(state: Partial<NutritionStorageState>): Promise<void> {
     nutritionLocalStorage.saveState(state);
+  },
+
+  // Timelines (IndexedDB)
+  async saveTimeline(timeline: DailyMealTimeline): Promise<void> {
+    await nutritionDb.put(INDEXED_DB_CONFIG.STORES.TIMELINES, timeline);
+  },
+
+  async getTimelineByDate(date: string): Promise<DailyMealTimeline | null> {
+    const timelines = await nutritionDb.getAll(INDEXED_DB_CONFIG.STORES.TIMELINES) as DailyMealTimeline[];
+    return timelines.find(t => t.date === date) || null;
+  },
+
+  async getAllTimelines(): Promise<DailyMealTimeline[]> {
+    return nutritionDb.getAll(INDEXED_DB_CONFIG.STORES.TIMELINES) as Promise<DailyMealTimeline[]>;
+  },
+
+  async deleteTimeline(id: string): Promise<void> {
+    await nutritionDb.delete(INDEXED_DB_CONFIG.STORES.TIMELINES, id);
+  },
+
+  async activateTimeline(id: string): Promise<void> {
+    const timelines = await nutritionDb.getAll(INDEXED_DB_CONFIG.STORES.TIMELINES) as DailyMealTimeline[];
+    const timeline = timelines.find(t => t.id === id);
+    if (timeline) {
+      timeline.isActive = true;
+      await this.saveTimeline(timeline);
+    }
   },
 
   // Logs (IndexedDB)
@@ -63,6 +91,7 @@ export const nutritionPersistenceService = {
     const hydration = await this.getHydrationLogs();
     const caloriesBurned = await this.getCaloriesBurnedHistory();
     const bodyMetrics = await this.getBodyMetricHistory();
+    const timelines = await nutritionDb.getAll(INDEXED_DB_CONFIG.STORES.TIMELINES);
 
     const backup = {
       version: 1,
@@ -72,7 +101,8 @@ export const nutritionPersistenceService = {
         meals,
         hydration,
         caloriesBurned,
-        bodyMetrics
+        bodyMetrics,
+        timelines
       }
     };
 
@@ -98,6 +128,9 @@ export const nutritionPersistenceService = {
       }
       if (backup.data.bodyMetrics) {
         for (const b of backup.data.bodyMetrics) await this.logBodyMetric(b);
+      }
+      if (backup.data.timelines) {
+        for (const t of backup.data.timelines) await this.saveTimeline(t);
       }
     } catch (e) {
       console.error('Import failed:', e);
